@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "react-router-dom";
 import { useWebRTC } from "../contexts/WebRTCContext";
-import SettingsModal from "./SettingsModal";
+import { SettingsModal } from "./modals";
 import "./ControlBar.css";
 
 const ControlBar = () => {

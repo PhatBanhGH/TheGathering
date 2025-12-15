@@ -103,10 +103,12 @@ export const preventDoubleTapZoom = () => {
 export const lockOrientation = async (
   orientation: "portrait" | "landscape" | "any"
 ) => {
-  if (typeof screen === "undefined" || !screen.orientation) return;
+  const orientationObj = (screen as any)?.orientation;
+  if (!orientationObj || typeof orientationObj.lock !== "function") return;
+
 
   try {
-    await screen.orientation.lock(orientation);
+        await orientationObj.lock?.(orientation);
   } catch (error) {
     console.warn("Failed to lock orientation:", error);
   }

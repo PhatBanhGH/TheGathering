@@ -5,19 +5,20 @@ import Sidebar from "../components/Sidebar";
 import ControlBar from "../components/ControlBar";
 import VideoChat from "../components/VideoChat";
 import Chat from "../components/Chat";
-import Reactions from "../components/Reactions";
 import ObjectsLayer from "../components/ObjectsLayer";
 import ZonesLayer from "../components/ZonesLayer";
 import ChatPage from "./ChatPage";
 import CalendarPage from "./CalendarPage";
-import { SocketProvider } from "../contexts/SocketContext";
-import { WebRTCProvider } from "../contexts/WebRTCContext";
-import { ChatProvider } from "../contexts/ChatContext";
-import { ObjectProvider } from "../contexts/ObjectContext";
-import { MapProvider } from "../contexts/MapContext";
-import { EventProvider } from "../contexts/EventContext";
-import { ThemeProvider } from "../contexts/ThemeContext";
-import { NotificationProvider } from "../contexts/NotificationContext";
+import {
+  SocketProvider,
+  WebRTCProvider,
+  ChatProvider,
+  ObjectProvider,
+  MapProvider,
+  EventProvider,
+  ThemeProvider,
+  NotificationProvider,
+} from "../contexts";
 import ErrorBoundary from "../components/ErrorBoundary";
 import "../App.css";
 

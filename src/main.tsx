@@ -13,7 +13,6 @@ import Register from "./pages/Register.tsx";
 import Lobby from "./pages/Lobby.tsx";
 import Spaces from "./pages/Spaces.tsx";
 import AppPage from "./pages/App.tsx";
-import ChatPage from "./pages/ChatPage.tsx";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

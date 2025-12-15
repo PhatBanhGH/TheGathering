@@ -12,7 +12,7 @@ const inspect = (obj: any, options?: any): string => {
   }
 };
 
-const debuglog = (section: string) => {
+const debuglog = (_section: string) => {
   // Return a no-op function in browser
   // In Node.js, this would conditionally log based on NODE_DEBUG env var
   return () => {};

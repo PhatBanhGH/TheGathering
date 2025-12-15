@@ -1,8 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useSocket } from "../contexts/SocketContext";
-import Calendar from "./Calendar";
-import InviteModal from "./InviteModal";
+import { InviteModal } from "./modals";
 import NotificationPanel from "./NotificationPanel";
 import { useNotifications } from "../contexts/NotificationContext";
 import "./Sidebar.css";
@@ -28,19 +27,58 @@ const Sidebar = () => {
     setActiveTab(getActiveTab());
   }, [location.pathname]);
 
-  // Separate online and offline users
-  const allUsersExceptCurrent = users.filter((u) => u.userId !== currentUser?.userId);
-  const onlineUsers = allUsersExceptCurrent.filter(
-    (u) => u.status === "online" || !u.status || u.status === undefined
-  );
-  const offlineUsers = allUsersExceptCurrent.filter((u) => u.status === "offline");
-  
-  const filteredOnlineUsers = onlineUsers.filter((u) =>
-    u.username.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-  const filteredOfflineUsers = offlineUsers.filter((u) =>
-    u.username.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Gộp danh sách user giống panel chat: 1 bản duy nhất theo username, ưu tiên online
+  const { onlineUsers, offlineUsers, filteredOnlineUsers, filteredOfflineUsers } =
+    (() => {
+      const byUsername = new Map<
+        string,
+        (typeof users)[0] | typeof currentUser | null | undefined
+      >();
+
+      users.forEach((u) => {
+        if (!u) return;
+        const existing = byUsername.get(u.username);
+        const status = (u as any).status || "online";
+        const existingStatus = (existing as any)?.status || "offline";
+        if (!existing || (existingStatus === "offline" && status === "online")) {
+          byUsername.set(u.username, u);
+        }
+      });
+
+      if (currentUser) {
+        const existing = byUsername.get(currentUser.username);
+        const existingStatus = (existing as any)?.status || "offline";
+        if (!existing || existingStatus === "offline") {
+          byUsername.set(currentUser.username, {
+            ...currentUser,
+            status: "online" as const,
+          });
+        }
+      }
+
+      const merged = Array.from(byUsername.values()).filter(
+        (u): u is NonNullable<typeof u> => !!u
+      );
+
+      const online = merged.filter(
+        (u) => (u as any).status !== "offline"
+      );
+      const offline = merged.filter((u) => (u as any).status === "offline");
+
+      const filteredOnline = online.filter((u) =>
+        u.username.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      const filteredOffline = offline.filter((u) =>
+        u.username.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+
+      return {
+        onlineUsers: online,
+        offlineUsers: offline,
+        filteredOnlineUsers: filteredOnline,
+        filteredOfflineUsers: filteredOffline,
+      };
+    })();
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const { unreadCount } = useNotifications();
@@ -141,34 +179,12 @@ const Sidebar = () => {
             </div>
           </div>
 
-          {/* Online Users Panel */}
+          {/* Online Users Panel - Trực tuyến */}
           <div className="online-users-panel">
             <div className="user-list-header">
-              <span>Online ({onlineUsers.length + (currentUser ? 1 : 0)}/20)</span>
+              <span>Trực tuyến ({onlineUsers.length}/20)</span>
             </div>
             <div className="user-list">
-              {currentUser && (
-                <div className="user-item active">
-                  <div className="user-avatar-wrapper">
-                    <div className="user-avatar">{currentUser.avatar}</div>
-                    <div className="status-dot online"></div>
-                  </div>
-                  <div className="user-info">
-                    <span className="user-name">{currentUser.username}</span>
-                    <span className="user-status">Active</span>
-                  </div>
-                  <button
-                    className="follow-btn"
-                    onClick={() => {
-                      // Follow functionality
-                      console.log("Follow", currentUser.userId);
-                    }}
-                    title="Follow"
-                  >
-                    +
-                  </button>
-                </div>
-              )}
               {filteredOnlineUsers.map((user) => (
                 <div key={user.userId} className="user-item">
                   <div className="user-avatar-wrapper">
@@ -194,11 +210,11 @@ const Sidebar = () => {
             </div>
           </div>
 
-          {/* Offline Users Panel */}
+          {/* Offline Users Panel - Ngoại tuyến */}
           {filteredOfflineUsers.length > 0 && (
             <div className="offline-users-panel">
               <div className="user-list-header">
-                <span>Offline ({offlineUsers.length})</span>
+                <span>Ngoại tuyến ({offlineUsers.length})</span>
               </div>
               <div className="user-list">
                 {filteredOfflineUsers.map((user) => (

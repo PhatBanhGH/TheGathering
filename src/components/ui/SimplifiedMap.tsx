@@ -1,5 +1,5 @@
 import React from 'react';
-import { useMap } from '../contexts/MapContext';
+import { useMap } from '../../contexts/MapContext';
 
 interface SimplifiedMapProps {
     visible: boolean;

@@ -1,4 +1,3 @@
-import { useRef } from "react";
 import { useObjects } from "../contexts/ObjectContext";
 import InteractiveObject from "./InteractiveObject";
 import "./ObjectsLayer.css";
@@ -49,7 +48,6 @@ const ObjectsLayer = () => {
           <div
             key={object.objectId}
             className="map-object-indicator"
-            // eslint-disable-next-line react/forbid-dom-props
             style={{
               left: `${screenPos.x}px`,
               top: `${screenPos.y}px`,

@@ -74,11 +74,29 @@ export const SocketProvider = ({
       }
       const storedAvatar =
         localStorage.getItem("userAvatar") || username.charAt(0).toUpperCase();
+      const storedPosition = (() => {
+        try {
+          const raw = localStorage.getItem("userPosition");
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (
+              parsed &&
+              Number.isFinite(parsed.x) &&
+              Number.isFinite(parsed.y)
+            ) {
+              return { x: parsed.x, y: parsed.y };
+            }
+          }
+        } catch (error) {
+          console.warn("Failed to parse stored position", error);
+        }
+        return { x: 100, y: 100 };
+      })();
       const user: User = {
         userId,
         username,
         avatar: storedAvatar,
-        position: { x: 100, y: 100 },
+        position: storedPosition,
         roomId,
         status: "online",
       };
@@ -120,6 +138,7 @@ export const SocketProvider = ({
         username,
         roomId,
         avatar: storedAvatar,
+        position: storedPosition,
       });
     });
 
@@ -260,6 +279,15 @@ export const SocketProvider = ({
 
     // Nhận danh sách vị trí của tất cả người chơi
     newSocket.on("allPlayersPositions", (allPlayers: User[]) => {
+      // Persist current user's latest position locally to restore after refresh
+      const self = allPlayers.find((p) => p.userId === currentUser?.userId);
+      if (self?.position) {
+        localStorage.setItem("userPosition", JSON.stringify(self.position));
+        setCurrentUser((prev) =>
+          prev ? { ...prev, position: self.position, direction: self.direction || prev.direction } : prev
+        );
+      }
+
       // Cập nhật danh sách users với vị trí mới và mark as online
       setUsers((prev) => {
         const updatedUsers = [...prev];

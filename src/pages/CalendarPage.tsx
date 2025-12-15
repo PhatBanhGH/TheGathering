@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useSocket } from "../contexts/SocketContext";
 import { useEvents } from "../contexts/EventContext";
-import InviteModal from "../components/InviteModal";
+import { InviteModal } from "../components/modals";
 import "./CalendarPage.css";
 
 const Icons = {
@@ -54,48 +54,18 @@ const Icons = {
   ),
 };
 
-const WhatsNewCard = () => (
-  <div className="whats-new-card">
-    <div className="whats-new-header">
-      <div className="whats-new-title">
-        <Icons.Fire />
-        <span>Có gì mới trong Gather?</span>
-      </div>
-      <button className="whats-new-close">
-        <Icons.Close />
-      </button>
-    </div>
-    <div className="whats-new-image">
-      <div style={{ fontSize: "2rem" }}>🎉</div>
-    </div>
-    <div className="whats-new-content">
-      <h4>Tắt cuộc trò chuyện xung quanh</h4>
-      <p>
-        Tinh chỉnh âm thanh văn phòng của bạn! Tắt hoàn toàn các cuộc trò chuyện
-        xung quanh hoặc định cấu hình khoảng cách mà bạn có thể nghe thấy người
-        khác.
-      </p>
-    </div>
-    <div className="whats-new-actions">
-      <button className="btn-secondary">Đã hiểu!</button>
-      <button className="btn-primary-sm">Cài đặt</button>
-    </div>
-  </div>
-);
+// WhatsNewCard component removed - unused
 
 const CalendarPage = () => {
-  const { users, currentUser } = useSocket();
+  const { users } = useSocket();
   const { events } = useEvents();
 
   const [currentDate, setCurrentDate] = useState(new Date());
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<"scheduled" | "notes">("scheduled");
   const [showInviteModal, setShowInviteModal] = useState(false);
   // const [showNewMeetingModal, setShowNewMeetingModal] = useState(false); // Unused for now
 
   const roomId = localStorage.getItem("roomId") || "default-room";
-  const currentUserCount = users.length;
-  const maxUsers = 20;
 
   // Get week dates
   const getWeekDates = () => {
@@ -190,22 +160,8 @@ const CalendarPage = () => {
     );
   };
 
-  // Filter events based on search
-  const filteredEvents = useMemo(() => {
-    if (!searchQuery) return events;
-    return events.filter(
-      (event) =>
-        event.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        event.description?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [events, searchQuery]);
-
-  // Direct messages for invite preview
-  const directMessages = users.slice(0, 4).map((user) => ({
-    userId: user.userId,
-    username: user.username,
-    avatar: user.username.charAt(0).toUpperCase(),
-  }));
+  // Filter events based on search - removed unused filteredEvents
+  // Direct messages for invite preview - removed unused directMessages
 
   // Mini calendar for sidebar
   const getDaysInMonth = (date: Date) => {
@@ -225,32 +181,7 @@ const CalendarPage = () => {
     return days;
   };
 
-  const miniCalendarDays = getDaysInMonth(currentDate);
-
-  const isMiniCalendarToday = (date: Date | null) => {
-    if (!date) return false;
-    return (
-      date.getDate() === today.getDate() &&
-      date.getMonth() === today.getMonth() &&
-      date.getFullYear() === today.getFullYear()
-    );
-  };
-
-  const goToMiniCalendarDate = (date: Date) => {
-    setCurrentDate(date);
-  };
-
-  const goToMiniCalendarPrevMonth = () => {
-    const newDate = new Date(currentDate);
-    newDate.setMonth(newDate.getMonth() - 1);
-    setCurrentDate(newDate);
-  };
-
-  const goToMiniCalendarNextMonth = () => {
-    const newDate = new Date(currentDate);
-    newDate.setMonth(newDate.getMonth() + 1);
-    setCurrentDate(newDate);
-  };
+  // Mini calendar functions removed - unused
 
   return (
     <div className="calendar-page">

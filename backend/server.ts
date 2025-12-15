@@ -7,40 +7,34 @@ import dotenv from "dotenv";
 import nodemailer from "nodemailer";
 import jwt from "jsonwebtoken";
 import { OAuth2Client } from "google-auth-library";
-import { fileURLToPath } from "url";
-import { dirname, join } from "path";
 
 // Import existing routes and models
-// @ts-ignore
+// @ts-expect-error external-js-import
 import authRoutes from "./routes/auth.js";
-// @ts-ignore
+// @ts-expect-error external-js-import
 import chatRoutes from "./routes/chatRoutes.js";
-// @ts-ignore
+// @ts-expect-error external-js-import
 import objectRoutes from "./routes/objectRoutes.js";
-// @ts-ignore
+// @ts-expect-error external-js-import
 import mapRoutes from "./routes/mapRoutes.js";
-// @ts-ignore
+// @ts-expect-error external-js-import
 import userRoutes from "./routes/userRoutes.js";
-// @ts-ignore
+// @ts-expect-error external-js-import
 import eventRoutes from "./routes/eventRoutes.js";
-// @ts-ignore
+// @ts-expect-error external-js-import
 import roomRoutes from "./routes/roomRoutes.js";
-// @ts-ignore
+// @ts-expect-error external-js-import
 import uploadRoutes from "./routes/uploadRoutes.js";
-// @ts-ignore
+// @ts-expect-error external-js-import
 import { registerChatHandlers } from "./controllers/chatController.js";
-// @ts-ignore
-import User from "./models/User.js";
-// @ts-ignore
+// @ts-expect-error external-js-import
+// @ts-expect-error external-js-import
 import Room from "./models/Room.js";
-// @ts-ignore
+// @ts-expect-error external-js-import
 import RoomMember from "./models/RoomMember.js";
 
 // Tải biến môi trường
 dotenv.config();
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 const app = express();
 const httpServer = createServer(app); // Sử dụng httpServer cho Socket.IO
@@ -253,7 +247,7 @@ app.get("/api/rooms/:roomId/users", async (req: Request, res: Response) => {
     const { roomId } = req.params;
     
     // Get all room members from database (including offline)
-    // @ts-ignore
+    // @ts-expect-error external-js-import
     const allMembers = await RoomMember.find({ roomId }).lean();
     
     // Get online users from connectedUsers
@@ -287,7 +281,7 @@ app.get("/api/rooms/:roomId/users", async (req: Request, res: Response) => {
 });
 
 // Error handling middleware (should be after all routes)
-// @ts-ignore
+// @ts-expect-error external-js-import
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 app.use(notFoundHandler);
 app.use(errorHandler);
@@ -303,7 +297,13 @@ io.on("connection", (socket) => {
   // User joins with user data
   socket.on("user-join", async (data) => {
     try {
-      const { userId, username, roomId, avatar } = data;
+      const { userId, username, roomId, avatar, position } = data;
+      const startPosition =
+        position &&
+        typeof position.x === "number" &&
+        typeof position.y === "number"
+          ? position
+          : { x: 100, y: 100 };
 
       // Validate username
       if (!username || username.trim() === "") {
@@ -312,10 +312,10 @@ io.on("connection", (socket) => {
       }
 
       // Get or create room
-      // @ts-ignore
+      // @ts-expect-error external-js-import
       let room = await Room.findOne({ roomId });
       if (!room) {
-        // @ts-ignore
+        // @ts-expect-error external-js-import
         room = new Room({
           roomId,
           name: `Room ${roomId}`,
@@ -358,7 +358,7 @@ io.on("connection", (socket) => {
         username: username.trim(),
         roomId,
         avatar,
-        position: { x: 100, y: 100 }, // Default starting position
+        position: startPosition, // Use client-provided or default position
         socketId: socket.id,
       });
 
@@ -371,7 +371,7 @@ io.on("connection", (socket) => {
 
       // Save/Update RoomMember in database FIRST (mark as online)
       try {
-        // @ts-ignore
+        // @ts-expect-error external-js-import
         await RoomMember.findOneAndUpdate(
           { roomId, userId },
           {
@@ -393,7 +393,7 @@ io.on("connection", (socket) => {
       // Load ALL room members from database AFTER updating
       let allRoomMembers = [];
       try {
-        // @ts-ignore
+        // @ts-expect-error external-js-import
         allRoomMembers = await RoomMember.find({ roomId }).lean();
         
         // Calculate online status AFTER user has been added to roomUsers
@@ -450,7 +450,7 @@ io.on("connection", (socket) => {
         userId,
         username: username.trim(),
         avatar,
-        position: { x: 100, y: 100 },
+        position: startPosition,
         status: "online", // Explicitly set status
       });
 
@@ -577,9 +577,9 @@ io.on("connection", (socket) => {
       (u: any) => u.userId === targetUserId && u.roomId === user.roomId
     );
 
-    // @ts-ignore
+    // @ts-expect-error external-js-import
     if (targetUser) {
-      // @ts-ignore
+      // @ts-expect-error external-js-import
       io.to(targetUser.socketId).emit("webrtc-offer", {
         fromUserId: user.userId,
         offer,
@@ -598,9 +598,9 @@ io.on("connection", (socket) => {
       (u: any) => u.userId === targetUserId && u.roomId === user.roomId
     );
 
-    // @ts-ignore
+    // @ts-expect-error external-js-import
     if (targetUser) {
-      // @ts-ignore
+      // @ts-expect-error external-js-import
       io.to(targetUser.socketId).emit("webrtc-answer", {
         fromUserId: user.userId,
         answer,
@@ -619,9 +619,9 @@ io.on("connection", (socket) => {
       (u: any) => u.userId === targetUserId && u.roomId === user.roomId
     );
 
-    // @ts-ignore
+    // @ts-expect-error external-js-import
     if (targetUser) {
-      // @ts-ignore
+      // @ts-expect-error external-js-import
       io.to(targetUser.socketId).emit("webrtc-ice-candidate", {
         fromUserId: user.userId,
         candidate,
@@ -674,7 +674,7 @@ io.on("connection", (socket) => {
       if (!hasOtherConnections) {
         try {
           console.log(`Marking user ${userId} as offline in database`);
-          // @ts-ignore
+          // @ts-expect-error external-js-import
           await RoomMember.findOneAndUpdate(
             { roomId, userId },
             {
@@ -685,7 +685,7 @@ io.on("connection", (socket) => {
           
           // Broadcast updated room members list to all users in room (with correct status)
           try {
-            // @ts-ignore
+            // @ts-expect-error external-js-import
             const allRoomMembers = await RoomMember.find({ roomId }).lean();
             const onlineUserIds = new Set(
               Array.from(roomUsers.get(roomId) || [])
@@ -736,7 +736,7 @@ io.on("connection", (socket) => {
       const finalUserCount = roomUsers.get(user.roomId)?.size || 0;
       if (roomUsers.has(user.roomId)) {
         try {
-          // @ts-ignore
+          // @ts-expect-error external-js-import
           const room = await Room.findOne({ roomId: user.roomId });
           if (room) {
             io.to(user.roomId).emit("room-info", {

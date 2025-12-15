@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState, useMemo } from "react";
 import MessageItem from "./MessageItem";
 import DateSeparator from "./DateSeparator";
-import SearchModal from "./SearchModal";
+import SearchModal from "../modals/SearchModal";
 import FileUpload from "./FileUpload";
 import "./ChatArea.css";
 
@@ -78,7 +78,7 @@ const ChatArea = ({
     setAttachments([]);
   };
 
-  const handleFileUpload = (file: File) => {
+  const handleFileUpload = () => {
     // File is being uploaded, FileUpload component will handle it
   };
 

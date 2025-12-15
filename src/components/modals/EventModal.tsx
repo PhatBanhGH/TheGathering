@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { useEvents } from "../contexts/EventContext";
-import { useSocket } from "../contexts/SocketContext";
+import { useEvents } from "../../contexts/EventContext";
+import { useSocket } from "../../contexts/SocketContext";
 import "./EventModal.css";
 
 interface EventModalProps {

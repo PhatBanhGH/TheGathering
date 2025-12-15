@@ -76,11 +76,6 @@ const VideoChat = () => {
     return distance < 150;
   });
 
-  // Get user info for each peer
-  const getPeerUser = (userId: string) => {
-    return users.find(u => u.userId === userId);
-  };
-
   if (nearbyUsers.length === 0 && !localStream && peers.size === 0) {
     return null;
   }

@@ -10,6 +10,7 @@ import { useSocket } from "./SocketContext";
 
 export interface Notification {
   id: string;
+  action?: { label: string; onClick: () => void };
   type: "info" | "success" | "warning" | "error" | "event" | "message";
   title: string;
   message: string;
@@ -103,7 +104,7 @@ export const NotificationProvider = ({
   useEffect(() => {
     if (!socket) return;
 
-    socket.on("user-joined", (data: any) => {
+    const handleUserJoined = (data: any) => {
       if (data.userId !== currentUser?.userId) {
         addNotification({
           type: "info",
@@ -111,27 +112,27 @@ export const NotificationProvider = ({
           message: `${data.username} joined the room`,
         });
       }
-    });
+    };
 
-    socket.on("user-left", (data: any) => {
+    const handleUserLeft = (data: any) => {
       addNotification({
         type: "info",
         title: "User Left",
         message: `${data.username} left the room`,
       });
-    });
+    };
 
-    socket.on("event-created", (data: any) => {
+    const handleEventCreated = (data: any) => {
       addNotification({
         type: "event",
         title: "New Event",
         message: `${data.title} - ${new Date(data.startTime).toLocaleString()}`,
         actionUrl: `/events/${data.eventId}`,
       });
-    });
+    };
 
     // Listen for new messages in channels user is not viewing
-    socket.on("chat-message", (data: any) => {
+    const handleChatMessageForChannel = (data: any) => {
       // Only notify if it's not from current user and not in current channel
       if (data.userId !== currentUser?.userId) {
         const currentChannel = localStorage.getItem("currentChannel");
@@ -144,10 +145,10 @@ export const NotificationProvider = ({
           });
         }
       }
-    });
+    };
 
     // Listen for mentions
-    socket.on("chat-message", (data: any) => {
+    const handleChatMessageForMention = (data: any) => {
       if (data.userId !== currentUser?.userId && data.message) {
         const mentionRegex = new RegExp(`@${currentUser?.username}`, "i");
         if (mentionRegex.test(data.message)) {
@@ -159,13 +160,20 @@ export const NotificationProvider = ({
           });
         }
       }
-    });
+    };
+
+    socket.on("user-joined", handleUserJoined);
+    socket.on("user-left", handleUserLeft);
+    socket.on("event-created", handleEventCreated);
+    socket.on("chat-message", handleChatMessageForChannel);
+    socket.on("chat-message", handleChatMessageForMention);
 
     return () => {
-      socket.off("user-joined");
-      socket.off("user-left");
-      socket.off("event-created");
-      socket.off("chat-message");
+      socket.off("user-joined", handleUserJoined);
+      socket.off("user-left", handleUserLeft);
+      socket.off("event-created", handleEventCreated);
+      socket.off("chat-message", handleChatMessageForChannel);
+      socket.off("chat-message", handleChatMessageForMention);
     };
   }, [socket, currentUser, addNotification]);
 

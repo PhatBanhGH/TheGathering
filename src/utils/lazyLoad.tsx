@@ -1,24 +1,27 @@
-import { lazy, Suspense, ComponentType } from "react";
+import { lazy, Suspense, ComponentType, LazyExoticComponent } from "react";
 
 /**
  * Lazy loading utilities for code splitting
  */
 
-// Lazy load components
-export const LazyCalendar = lazy(() => import("../components/Calendar"));
-export const LazyEventModal = lazy(() => import("../components/EventModal"));
-export const LazyMapEditor = lazy(() => import("../components/MapEditor"));
-export const LazyZoneEditor = lazy(() => import("../components/ZoneEditor"));
-export const LazyObjectPlacementPanel = lazy(
+// Lazy load components (type-erased to avoid props inference issues)
+const lazyAny = (loader: () => Promise<{ default: ComponentType<any> }>): LazyExoticComponent<ComponentType<any>> =>
+  lazy(loader) as LazyExoticComponent<ComponentType<any>>;
+
+export const LazyCalendar = lazyAny(() => import("../components/ui/Calendar"));
+export const LazyEventModal = lazyAny(() => import("../components/modals/EventModal"));
+export const LazyMapEditor = lazyAny(() => import("../components/MapEditor"));
+export const LazyZoneEditor = lazyAny(() => import("../components/ZoneEditor"));
+export const LazyObjectPlacementPanel = lazyAny(
   () => import("../components/ObjectPlacementPanel")
 );
-export const LazySettingsModal = lazy(
-  () => import("../components/SettingsModal")
+export const LazySettingsModal = lazyAny(
+  () => import("../components/modals/SettingsModal")
 );
-export const LazyNotificationPanel = lazy(
+export const LazyNotificationPanel = lazyAny(
   () => import("../components/NotificationPanel")
 );
-export const LazyWhiteboard = lazy(() => import("../components/Whiteboard"));
+export const LazyWhiteboard = lazyAny(() => import("../components/Whiteboard"));
 
 /**
  * Loading fallback component
@@ -40,13 +43,10 @@ export const LoadingFallback = () => (
 /**
  * HOC for lazy loading with Suspense
  */
-export const withLazyLoad = <P extends object>(
-  Component: ComponentType<P>
-) => {
+export const withLazyLoad = <P extends object>(Component: ComponentType<P>) => {
   return (props: P) => (
     <Suspense fallback={<LoadingFallback />}>
       <Component {...props} />
     </Suspense>
   );
 };
-

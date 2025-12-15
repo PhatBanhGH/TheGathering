@@ -47,7 +47,7 @@ const ObjectFrame = ({ object, onClose }: ObjectFrameProps) => {
           />
         );
 
-      case "video":
+      case "video": {
         // Extract video ID from YouTube/Vimeo URL
         const videoUrl = object.properties.url || "";
         let embedUrl = videoUrl;
@@ -73,6 +73,8 @@ const ObjectFrame = ({ object, onClose }: ObjectFrameProps) => {
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           />
         );
+
+      }
 
       case "image":
         return (

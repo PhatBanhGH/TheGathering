@@ -6,7 +6,7 @@ import { MapContext } from "../contexts/MapContext";
  */
 export const useMapSafe = () => {
   try {
-    const context = useContext(MapContext);
+    const context = useContext(MapContext as any) as any;
     return context || null;
   } catch (e) {
     return null;

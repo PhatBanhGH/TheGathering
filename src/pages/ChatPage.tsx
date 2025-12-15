@@ -2,13 +2,9 @@ import { useState, useMemo, useEffect } from "react";
 import { useSocket } from "../contexts/SocketContext";
 import { useChat } from "../contexts/ChatContext";
 import { useTheme } from "../contexts/ThemeContext";
-import InviteModal from "../components/InviteModal";
-import ServerList from "../components/chat/ServerList";
-import ChannelList from "../components/chat/ChannelList";
-import ChatArea from "../components/chat/ChatArea";
-import UserList from "../components/chat/UserList";
-import CreateChannelModal from "../components/chat/CreateChannelModal";
-import "../styles/mobile.css";
+import { InviteModal, CreateChannelModal } from "../components/modals";
+import { ServerList, ChannelList, ChatArea, UserList } from "../components/chat/index";
+import "../styles/responsive.css";
 import "./ChatPage.css";
 
 type DirectMessage = {
@@ -37,15 +33,6 @@ const ChatPage = () => {
     editMessage,
     deleteMessage,
   } = useChat();
-  // const {
-  //   isVideoEnabled,
-  //   isAudioEnabled,
-  //   isScreenSharing,
-  //   toggleVideo,
-  //   toggleAudio,
-  //   startScreenShare,
-  //   stopScreenShare,
-  // } = useWebRTC();
 
   const [selectedChannel, setSelectedChannel] = useState<string>("general");
   const [selectedDM, setSelectedDM] = useState<string | null>(null);
@@ -66,13 +53,38 @@ const ChatPage = () => {
   }, [selectedChannel, updateChannelUnread]);
 
   const directMessages: DirectMessage[] = useMemo(() => {
-    return users
+    // Dedupe theo username và ưu tiên bản ghi đang online để DM đúng user hiện tại
+    const dmMap = new Map<string, DirectMessage & { status?: "online" | "offline" }>();
+
+    users
       .filter((u) => u.userId !== currentUser?.userId)
-      .map((u) => ({
-        userId: u.userId,
-        username: u.username,
-        avatar: u.avatar,
-      }));
+      .forEach((u) => {
+        const status = (u as any).status || "online";
+        const existing = dmMap.get(u.username);
+
+        if (!existing) {
+          dmMap.set(u.username, {
+            userId: u.userId,
+            username: u.username,
+            avatar: u.avatar,
+            status,
+          });
+        } else {
+          // Nếu đã có user cùng username:
+          // - Nếu bản cũ offline và bản mới online -> thay bằng online
+          // - Nếu cả hai online, giữ lần đầu (tránh nhảy userId liên tục)
+          if (existing.status === "offline" && status === "online") {
+            dmMap.set(u.username, {
+              userId: u.userId,
+              username: u.username,
+              avatar: u.avatar,
+              status,
+            });
+          }
+        }
+      });
+
+    return Array.from(dmMap.values()).map(({ status: _status, ...rest }) => rest);
   }, [users, currentUser]);
 
   useEffect(() => {
@@ -138,50 +150,58 @@ const ChatPage = () => {
     }
   };
 
-  // Prepare users for UserList - bao gồm cả currentUser và loại bỏ duplicates
+  // Prepare users cho UserList: gộp 1 bản duy nhất theo username, ưu tiên bản đang online
   const usersForList = useMemo(() => {
-    // Combine users và currentUser, loại bỏ duplicates
-    const userMap = new Map<string, typeof users[0] | typeof currentUser>();
-    
-    // Add currentUser first (if exists) - always online
-    if (currentUser) {
-      userMap.set(currentUser.userId, { ...currentUser, status: "online" as const });
-    }
-    
-    // Add all users from socket context (preserve their status)
-    users.forEach((user) => {
-      if (user) {
-        userMap.set(user.userId, user);
+    const byUsername = new Map<
+      string,
+      (typeof users)[0] | (typeof currentUser) | null | undefined
+    >();
+
+    // Add all socket users (online/offline)
+    users.forEach((u) => {
+      if (!u) return;
+      const existing = byUsername.get(u.username);
+      const status = (u as any).status || "online";
+      const existingStatus = (existing as any)?.status || "offline";
+
+      // Ưu tiên online, nếu chưa có thì thêm, nếu đã có offline mà bản mới online thì thay
+      if (!existing || (existingStatus === "offline" && status === "online")) {
+        byUsername.set(u.username, u);
       }
     });
-    
-    const allUsers = Array.from(userMap.values()).filter((u): u is NonNullable<typeof u> => u !== null && u !== undefined);
-    
-    // Sort: online users first, then offline; currentUser always first
-    const sortedUsers = allUsers.sort((a, b) => {
-      // CurrentUser always first
+
+    // Ensure currentUser present và online
+    if (currentUser) {
+      const existing = byUsername.get(currentUser.username);
+      const existingStatus = (existing as any)?.status || "offline";
+      if (!existing || existingStatus === "offline") {
+        byUsername.set(currentUser.username, { ...currentUser, status: "online" as const });
+      }
+    }
+
+    const merged = Array.from(byUsername.values()).filter(
+      (u): u is NonNullable<typeof u> => !!u
+    );
+
+    // Sort: currentUser first, sau đó online > offline, rồi alpha
+    const sorted = merged.sort((a, b) => {
       if (a.userId === currentUser?.userId) return -1;
       if (b.userId === currentUser?.userId) return 1;
-      
-      // Then by status: online first
       const aStatus = (a as any).status || "online";
       const bStatus = (b as any).status || "online";
-      if (aStatus === "online" && bStatus === "offline") return -1;
-      if (aStatus === "offline" && bStatus === "online") return 1;
-      
-      // Then alphabetically
+      if (aStatus !== bStatus) return aStatus === "online" ? -1 : 1;
       return a.username.localeCompare(b.username);
     });
-    
-    // Map to UserList format
-    return sortedUsers.map((user) => ({
+
+    return sorted.map((user) => ({
       userId: user.userId,
       username: user.username,
       avatar: user.avatar,
-      status: ((user as any).status || "online") as "online" | "offline", // Preserve status from socket
-      currentVoiceChannel: currentVoiceChannel && user.userId === currentUser?.userId 
-        ? currentVoiceChannel 
-        : undefined,
+      status: ((user as any).status || "online") as "online" | "offline",
+      currentVoiceChannel:
+        currentVoiceChannel && user.userId === currentUser?.userId
+          ? currentVoiceChannel
+          : undefined,
     }));
   }, [users, currentUser, currentVoiceChannel]);
 
@@ -202,7 +222,7 @@ const ChatPage = () => {
         {/* Server List */}
         <ServerList
           currentServerId="default"
-          onServerSelect={(id) => console.log("Server selected:", id)}
+          onServerSelect={(id: string) => console.log("Server selected:", id)}
         />
 
         {/* Channel List */}
@@ -213,20 +233,20 @@ const ChatPage = () => {
           voiceChannels={voiceChannels || []}
           selectedChannelId={selectedChannel}
           currentVoiceChannelId={currentVoiceChannel}
-          onChannelSelect={(id) => {
+          onChannelSelect={(id: string) => {
             setSelectedChannel(id);
             setSelectedDM(null);
             setActiveTab("global");
             setMobileMenuOpen(false);
           }}
-          onVoiceChannelJoin={(id) => {
+          onVoiceChannelJoin={(id: string) => {
             if (currentVoiceChannel === id) {
               leaveVoiceChannel();
             } else {
               joinVoiceChannel(id);
             }
           }}
-          onCreateChannel={(type) => {
+          onCreateChannel={(type: "text" | "voice") => {
             setCreateChannelType(type);
             setShowCreateChannelModal(true);
           }}
@@ -257,7 +277,7 @@ const ChatPage = () => {
             attachments: msg.attachments,
           }))}
           currentUserId={currentUser?.userId}
-          onSendMessage={(content, attachments) => {
+          onSendMessage={(content: string, attachments?: Array<{ filename: string; originalName: string; mimeType: string; size: number; url: string }>) => {
             // Send message with channelId for global messages
             if (activeTab === "global" && selectedChannel) {
               sendMessage(content, selectedChannel, undefined, attachments);
@@ -265,7 +285,7 @@ const ChatPage = () => {
               sendMessage(content, undefined, undefined, attachments);
             }
           }}
-          onReply={(messageId, content) => {
+          onReply={(messageId: string, content: string) => {
             // Reply with messageId
             handleSendMessage(content, messageId);
           }}
@@ -284,7 +304,7 @@ const ChatPage = () => {
           className={mobileUserListOpen ? "open" : ""}
           users={usersForList}
           currentUserId={currentUser?.userId}
-          onUserClick={(userId) => {
+          onUserClick={(userId: string) => {
             setSelectedDM(userId);
             setSelectedChannel("");
             setActiveTab("dm");
@@ -301,7 +321,7 @@ const ChatPage = () => {
       <CreateChannelModal
         isOpen={showCreateChannelModal}
         onClose={() => setShowCreateChannelModal(false)}
-        onCreateChannel={(name, type, description) => {
+        onCreateChannel={(name: string, type: "text" | "voice", description?: string) => {
           createChannel(name, type, description);
           setShowCreateChannelModal(false);
         }}

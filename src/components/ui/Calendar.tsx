@@ -1,12 +1,10 @@
 import { useState } from "react";
-import { useEvents } from "../contexts/EventContext";
-import { useSocket } from "../contexts/SocketContext";
-import EventModal from "./EventModal";
+import { useEvents } from "../../contexts/EventContext";
+import { EventModal } from "../modals";
 import "./Calendar.css";
 
 const Calendar = () => {
   const { events } = useEvents();
-  const { currentUser } = useSocket();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [showEventModal, setShowEventModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<any>(null);

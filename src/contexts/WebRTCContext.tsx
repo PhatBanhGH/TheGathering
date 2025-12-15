@@ -127,9 +127,7 @@ export const WebRTCProvider = ({ children }: WebRTCProviderProps) => {
 
         // Replace track in all peer connections
         peersRef.current.forEach((peerConn) => {
-          const sender = peerConn.peer._pc
-            ?.getSenders()
-            .find((s) => s.track?.kind === "video");
+          const sender =  (peerConn.peer as any)?._pc?.getSenders?.().find((s: RTCRtpSender) => s.track?.kind === "video");
           if (sender && videoTrack) {
             sender.replaceTrack(videoTrack);
           }
@@ -166,9 +164,7 @@ export const WebRTCProvider = ({ children }: WebRTCProviderProps) => {
 
         // Replace track in all peer connections
         peersRef.current.forEach((peerConn) => {
-          const sender = peerConn.peer._pc
-            ?.getSenders()
-            .find((s) => s.track?.kind === "video");
+          const sender =  (peerConn.peer as any)?._pc?.getSenders?.().find((s: RTCRtpSender) => s.track?.kind === "video");
           if (sender && cameraVideoTrack) {
             sender.replaceTrack(cameraVideoTrack);
           }

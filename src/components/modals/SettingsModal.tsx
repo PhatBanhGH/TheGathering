@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { useSocket } from "../contexts/SocketContext";
-import { useWebRTC } from "../contexts/WebRTCContext";
+import { useSocket } from "../../contexts/SocketContext";
+import { useWebRTC } from "../../contexts/WebRTCContext";
 import "./SettingsModal.css";
 
 interface SettingsModalProps {

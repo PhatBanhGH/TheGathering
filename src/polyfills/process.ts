@@ -3,7 +3,7 @@
 
 if (typeof globalThis.process === 'undefined') {
   (globalThis as any).process = {
-    nextTick: (callback: () => void, ...args: any[]) => {
+    nextTick: (callback: (...args: any[]) => void, ...args: any[]) => {
       setTimeout(() => {
         callback(...args);
       }, 0);

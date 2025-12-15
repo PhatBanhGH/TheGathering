@@ -14,7 +14,6 @@ const ZoneEditor = ({ isOpen, onClose }: ZoneEditorProps) => {
   const { currentUser } = useSocket();
   const [zones, setZones] = useState<Zone[]>([]);
   const [isCreating, setIsCreating] = useState(false);
-  const [editingZone, setEditingZone] = useState<string | null>(null);
   const [newZone, setNewZone] = useState({
     name: "",
     x1: 0,

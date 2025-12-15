@@ -1,14 +1,14 @@
-const globalObject =
-  typeof globalThis !== 'undefined'
+const globalObj =
+  typeof globalThis !== "undefined"
     ? globalThis
-    : typeof window !== 'undefined'
+    : typeof window !== "undefined"
       ? window
-      : typeof global !== 'undefined'
-        ? global
-        : typeof self !== 'undefined'
+      : typeof global !== "undefined"
+        ? (global as any)
+        : typeof self !== "undefined"
           ? self
           : {};
 
-export const global = globalObject as typeof globalThis;
-export default global;
-
+export const globalPolyfill = globalObj as typeof globalThis;
+export { globalPolyfill as global };
+export default globalPolyfill;
