@@ -1,22 +1,23 @@
-import express from 'express';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import User from '../models/User.js';
+import express, { Request, Response } from "express";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import User from "../models/User.js";
 
 const router = express.Router();
 
 // Register
-router.post('/register', async (req, res) => {
+router.post("/register", async (req: Request, res: Response): Promise<void> => {
   try {
     const { username, email, password } = req.body;
 
     // Check if user exists
     const existingUser = await User.findOne({
-      $or: [{ email }, { username }]
+      $or: [{ email }, { username }],
     });
 
     if (existingUser) {
-      return res.status(400).json({ message: 'User already exists' });
+      res.status(400).json({ message: "User already exists" });
+      return;
     }
 
     // Hash password
@@ -33,9 +34,9 @@ router.post('/register', async (req, res) => {
 
     // Generate token
     const token = jwt.sign(
-      { userId: user._id },
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '7d' }
+      { userId: user._id.toString() },
+      process.env.JWT_SECRET || "your-secret-key",
+      { expiresIn: "7d" }
     );
 
     res.status(201).json({
@@ -48,18 +49,19 @@ router.post('/register', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Register error:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("Register error:", error);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
 // Google OAuth Login/Create
-router.post('/google', async (req, res) => {
+router.post("/google", async (req: Request, res: Response): Promise<void> => {
   try {
     const { googleId, email, username, avatar } = req.body;
 
     if (!googleId || !email) {
-      return res.status(400).json({ message: 'Google ID and email are required' });
+      res.status(400).json({ message: "Google ID and email are required" });
+      return;
     }
 
     // Find or create user
@@ -77,11 +79,11 @@ router.post('/google', async (req, res) => {
       } else {
         // Create new user
         user = new User({
-          username: username || email.split('@')[0],
+          username: username || email.split("@")[0],
           email,
           googleId,
-          avatar: avatar || 'default',
-          password: '', // OAuth users don't need password
+          avatar: avatar || "default",
+          password: "", // OAuth users don't need password
         });
         await user.save();
       }
@@ -99,9 +101,9 @@ router.post('/google', async (req, res) => {
 
     // Generate token
     const token = jwt.sign(
-      { userId: user._id },
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '7d' }
+      { userId: user._id.toString() },
+      process.env.JWT_SECRET || "your-secret-key",
+      { expiresIn: "7d" }
     );
 
     res.json({
@@ -114,39 +116,47 @@ router.post('/google', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Google OAuth error:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("Google OAuth error:", error);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
 // Login
-router.post('/login', async (req, res) => {
+router.post("/login", async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password, recaptchaToken } = req.body;
     
     // Verify reCAPTCHA only if token is provided
     if (process.env.GOOGLE_RECAPTCHA_SECRET_KEY && recaptchaToken) {
-      const recaptchaResponse = await fetch('https://www.google.com/recaptcha/api/siteverify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      const recaptchaResponse = await fetch("https://www.google.com/recaptcha/api/siteverify", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: `secret=${process.env.GOOGLE_RECAPTCHA_SECRET_KEY}&response=${recaptchaToken}`,
       });
-      const recaptchaData = await recaptchaResponse.json();
+      const recaptchaData = await recaptchaResponse.json() as { success: boolean };
       if (!recaptchaData.success) {
-        return res.status(400).json({ message: "Xác thực CAPTCHA không thành công." });
+        res.status(400).json({ message: "Xác thực CAPTCHA không thành công." });
+        return;
       }
     }
 
     // Find user
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+      res.status(401).json({ message: "Invalid credentials" });
+      return;
     }
 
     // Check password
+    if (!user.password) {
+      res.status(401).json({ message: "Invalid credentials" });
+      return;
+    }
+
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(401).json({ message: 'Invalid credentials' });
+      res.status(401).json({ message: "Invalid credentials" });
+      return;
     }
 
     // Update last seen
@@ -155,9 +165,9 @@ router.post('/login', async (req, res) => {
 
     // Generate token
     const token = jwt.sign(
-      { userId: user._id },
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '7d' }
+      { userId: user._id.toString() },
+      process.env.JWT_SECRET || "your-secret-key",
+      { expiresIn: "7d" }
     );
 
     res.json({
@@ -170,14 +180,10 @@ router.post('/login', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ message: 'Server error' });
+    console.error("Login error:", error);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
 export default router;
-
-
-
-
 

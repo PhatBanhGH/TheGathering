@@ -1,6 +1,32 @@
-import mongoose from "mongoose";
+import mongoose, { Document, Schema } from "mongoose";
 
-const objectSchema = new mongoose.Schema(
+export interface IObjectProperties {
+  url?: string;
+  content?: string; // JSON string của canvas data
+  imageUrl?: string;
+  documentUrl?: string;
+  width?: number;
+  height?: number;
+  allowFullscreen?: boolean;
+}
+
+export interface IObject extends Document {
+  objectId: string;
+  roomId: string;
+  type: "whiteboard" | "video" | "website" | "image" | "document" | "game";
+  name: string;
+  position: {
+    x: number;
+    y: number;
+  };
+  properties: IObjectProperties;
+  createdBy?: string | null;
+  isActive: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+const objectSchema = new Schema<IObject>(
   {
     objectId: {
       type: String,
@@ -56,4 +82,5 @@ const objectSchema = new mongoose.Schema(
 // Index for efficient queries
 objectSchema.index({ roomId: 1, isActive: 1 });
 
-export default mongoose.model("Object", objectSchema);
+export default mongoose.model<IObject>("Object", objectSchema);
+

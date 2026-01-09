@@ -2,7 +2,7 @@
   "name": "gather-town-backend",
   "version": "1.0.0",
   "description": "Backend server for Gather Town clone",
-  "main": "server.js",
+  "main": "server.ts",
   "type": "module",
   "scripts": {
     "start": "tsx server.ts",
@@ -31,9 +31,11 @@
     "tsx": "^4.21.0"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
+    "@types/mongoose": "^5.11.97",
     "@types/node": "^24.10.1",
     "@types/nodemailer": "^7.0.4",
     "nodemon": "^3.0.2",

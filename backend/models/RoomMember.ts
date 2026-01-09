@@ -1,6 +1,18 @@
-import mongoose from "mongoose";
+import mongoose, { Document, Schema } from "mongoose";
 
-const roomMemberSchema = new mongoose.Schema(
+export interface IRoomMember extends Document {
+  roomId: string;
+  userId: string;
+  username: string;
+  avatar: string;
+  joinedAt: Date;
+  lastSeen: Date;
+  isOnline: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+const roomMemberSchema = new Schema<IRoomMember>(
   {
     roomId: {
       type: String,
@@ -40,5 +52,5 @@ const roomMemberSchema = new mongoose.Schema(
 // Compound index to ensure unique user per room
 roomMemberSchema.index({ roomId: 1, userId: 1 }, { unique: true });
 
-export default mongoose.model("RoomMember", roomMemberSchema);
+export default mongoose.model<IRoomMember>("RoomMember", roomMemberSchema);
 

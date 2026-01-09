@@ -4,6 +4,7 @@ import { useChat } from "../contexts/ChatContext";
 import { useTheme } from "../contexts/ThemeContext";
 import { InviteModal, CreateChannelModal } from "../components/modals";
 import { ServerList, ChannelList, ChatArea, UserList } from "../components/chat/index";
+import VoiceChannelView from "../components/chat/VoiceChannelView";
 import "../styles/responsive.css";
 import "./ChatPage.css";
 
@@ -257,47 +258,64 @@ const ChatPage = () => {
           } : undefined}
         />
 
-        {/* Chat Area */}
-        <ChatArea
-          channelName={
-            activeTab === "dm" && currentDMUser
-              ? currentDMUser.username
-              : currentChannel?.name || selectedChannel || "general"
-          }
-          channelType={activeTab === "dm" ? "dm" : "text"}
-          messages={displayMessages.map((msg) => ({
-            id: msg.id,
-            userId: msg.userId,
-            username: msg.username,
-            message: msg.message,
-            timestamp: msg.timestamp,
-            editedAt: msg.editedAt,
-            replyTo: msg.replyTo,
-            reactions: msg.reactions,
-            attachments: msg.attachments,
-          }))}
-          currentUserId={currentUser?.userId}
-          onSendMessage={(content: string, attachments?: Array<{ filename: string; originalName: string; mimeType: string; size: number; url: string }>) => {
-            // Send message with channelId for global messages
-            if (activeTab === "global" && selectedChannel) {
-              sendMessage(content, selectedChannel, undefined, attachments);
-            } else {
-              sendMessage(content, undefined, undefined, attachments);
+        {/* Chat Area or Voice Channel View */}
+        {currentVoiceChannel ? (
+          <VoiceChannelView
+            channelId={currentVoiceChannel}
+            channelName={
+              voiceChannels.find((vc) => vc.id === currentVoiceChannel)?.name ||
+              "Voice Channel"
             }
-          }}
-          onReply={(messageId: string, content: string) => {
-            // Reply with messageId
-            handleSendMessage(content, messageId);
-          }}
-          onReact={reactToMessage}
-          onEdit={editMessage}
-          onDelete={deleteMessage}
-          inputPlaceholder={
-            activeTab === "dm" && currentDMUser
-              ? `Nhắn @${currentDMUser.username}`
-              : `Nhắn #${selectedChannel || "general"}`
-          }
-        />
+            onLeave={() => {
+              leaveVoiceChannel();
+              setSelectedChannel("general");
+              setActiveTab("global");
+              // Clear voice channel users in WebRTC context
+              // This is handled by VoiceChannelView useEffect cleanup
+            }}
+          />
+        ) : (
+          <ChatArea
+            channelName={
+              activeTab === "dm" && currentDMUser
+                ? currentDMUser.username
+                : currentChannel?.name || selectedChannel || "general"
+            }
+            channelType={activeTab === "dm" ? "dm" : "text"}
+            messages={displayMessages.map((msg) => ({
+              id: msg.id,
+              userId: msg.userId,
+              username: msg.username,
+              message: msg.message,
+              timestamp: msg.timestamp,
+              editedAt: msg.editedAt,
+              replyTo: msg.replyTo,
+              reactions: msg.reactions,
+              attachments: msg.attachments,
+            }))}
+            currentUserId={currentUser?.userId}
+            onSendMessage={(content: string, attachments?: Array<{ filename: string; originalName: string; mimeType: string; size: number; url: string }>) => {
+              // Send message with channelId for global messages
+              if (activeTab === "global" && selectedChannel) {
+                sendMessage(content, selectedChannel, undefined, attachments);
+              } else {
+                sendMessage(content, undefined, undefined, attachments);
+              }
+            }}
+            onReply={(messageId: string, content: string) => {
+              // Reply with messageId
+              handleSendMessage(content, messageId);
+            }}
+            onReact={reactToMessage}
+            onEdit={editMessage}
+            onDelete={deleteMessage}
+            inputPlaceholder={
+              activeTab === "dm" && currentDMUser
+                ? `Nhắn @${currentDMUser.username}`
+                : `Nhắn #${selectedChannel || "general"}`
+            }
+          />
+        )}
 
         {/* User List */}
         <UserList

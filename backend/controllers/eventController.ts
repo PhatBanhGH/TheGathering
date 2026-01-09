@@ -1,29 +1,39 @@
+import { Request, Response } from "express";
 import Event from "../models/Event.js";
 
 // Get events for a room
-export const getEventsByRoom = async (req, res) => {
+export const getEventsByRoom = async (req: Request, res: Response): Promise<void> => {
   try {
     const { roomId } = req.params;
     const { startDate, endDate } = req.query;
 
-    let query = { roomId };
+    interface QueryType {
+      roomId: string;
+      startTime?: {
+        $gte: Date;
+        $lte: Date;
+      };
+    }
+
+    const query: QueryType = { roomId };
 
     if (startDate && endDate) {
       query.startTime = {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate),
+        $gte: new Date(startDate as string),
+        $lte: new Date(endDate as string),
       };
     }
 
     const events = await Event.find(query).sort({ startTime: 1 });
     res.json(events);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    const err = error as Error;
+    res.status(500).json({ message: err.message });
   }
 };
 
 // Create event
-export const createEvent = async (req, res) => {
+export const createEvent = async (req: Request, res: Response): Promise<void> => {
   try {
     const {
       roomId,
@@ -55,19 +65,21 @@ export const createEvent = async (req, res) => {
     await event.save();
     res.status(201).json(event);
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    const err = error as Error;
+    res.status(400).json({ message: err.message });
   }
 };
 
 // Update event
-export const updateEvent = async (req, res) => {
+export const updateEvent = async (req: Request, res: Response): Promise<void> => {
   try {
     const { eventId } = req.params;
     const updates = req.body;
 
     const event = await Event.findOne({ eventId });
     if (!event) {
-      return res.status(404).json({ message: "Event not found" });
+      res.status(404).json({ message: "Event not found" });
+      return;
     }
 
     if (updates.title) event.title = updates.title;
@@ -79,19 +91,21 @@ export const updateEvent = async (req, res) => {
     await event.save();
     res.json(event);
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    const err = error as Error;
+    res.status(400).json({ message: err.message });
   }
 };
 
 // RSVP to event
-export const rsvpEvent = async (req, res) => {
+export const rsvpEvent = async (req: Request, res: Response): Promise<void> => {
   try {
     const { eventId } = req.params;
     const { userId, username, status } = req.body;
 
     const event = await Event.findOne({ eventId });
     if (!event) {
-      return res.status(404).json({ message: "Event not found" });
+      res.status(404).json({ message: "Event not found" });
+      return;
     }
 
     const attendeeIndex = event.attendees.findIndex(
@@ -107,22 +121,26 @@ export const rsvpEvent = async (req, res) => {
     await event.save();
     res.json(event);
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    const err = error as Error;
+    res.status(400).json({ message: err.message });
   }
 };
 
 // Delete event
-export const deleteEvent = async (req, res) => {
+export const deleteEvent = async (req: Request, res: Response): Promise<void> => {
   try {
     const { eventId } = req.params;
 
     const event = await Event.findOneAndDelete({ eventId });
     if (!event) {
-      return res.status(404).json({ message: "Event not found" });
+      res.status(404).json({ message: "Event not found" });
+      return;
     }
 
     res.json({ message: "Event deleted successfully" });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    const err = error as Error;
+    res.status(500).json({ message: err.message });
   }
 };
+

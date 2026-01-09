@@ -15,10 +15,10 @@ if (!fs.existsSync(uploadsDir)) {
 
 // Configure storage
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
+  destination: (_req, _file, cb) => {
     cb(null, uploadsDir);
   },
-  filename: (req, file, cb) => {
+  filename: (_req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
     const ext = path.extname(file.originalname);
     cb(null, file.fieldname + "-" + uniqueSuffix + ext);
@@ -26,7 +26,11 @@ const storage = multer.diskStorage({
 });
 
 // File filter
-const fileFilter = (req, file, cb) => {
+const fileFilter = (
+  _req: Express.Request,
+  file: Express.Multer.File,
+  cb: multer.FileFilterCallback
+) => {
   // Allow images, documents, and common file types
   const allowedMimes = [
     "image/jpeg",
@@ -45,7 +49,7 @@ const fileFilter = (req, file, cb) => {
   if (allowedMimes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error("File type not allowed"), false);
+    cb(new Error("File type not allowed"));
   }
 };
 
@@ -59,7 +63,7 @@ export const upload = multer({
 });
 
 // Helper to get file URL
-export const getFileUrl = (filename) => {
+export const getFileUrl = (filename: string): string => {
   return `/api/uploads/${filename}`;
 };
 

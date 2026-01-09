@@ -1,4 +1,4 @@
-import express from "express";
+import express, { Request, Response } from "express";
 import { upload, getFileUrl } from "../middleware/upload.js";
 import path from "path";
 import fs from "fs";
@@ -10,13 +10,14 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Upload file endpoint
-router.post("/", upload.single("file"), (req, res) => {
+router.post("/", upload.single("file"), (req: Request, res: Response): void => {
   try {
     if (!req.file) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         message: "No file uploaded",
       });
+      return;
     }
 
     const fileUrl = getFileUrl(req.file.filename);
@@ -41,16 +42,17 @@ router.post("/", upload.single("file"), (req, res) => {
 });
 
 // Serve uploaded files
-router.get("/:filename", (req, res) => {
+router.get("/:filename", (req: Request, res: Response): void => {
   try {
     const { filename } = req.params;
     const filePath = path.join(__dirname, "../uploads", filename);
 
     if (!fs.existsSync(filePath)) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: "File not found",
       });
+      return;
     }
 
     res.sendFile(filePath);
@@ -64,16 +66,17 @@ router.get("/:filename", (req, res) => {
 });
 
 // Delete file endpoint
-router.delete("/:filename", (req, res) => {
+router.delete("/:filename", (req: Request, res: Response): void => {
   try {
     const { filename } = req.params;
     const filePath = path.join(__dirname, "../uploads", filename);
 
     if (!fs.existsSync(filePath)) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: "File not found",
       });
+      return;
     }
 
     fs.unlinkSync(filePath);

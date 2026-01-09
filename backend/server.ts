@@ -9,28 +9,16 @@ import jwt from "jsonwebtoken";
 import { OAuth2Client } from "google-auth-library";
 
 // Import existing routes and models
-// @ts-expect-error external-js-import
 import authRoutes from "./routes/auth.js";
-// @ts-expect-error external-js-import
 import chatRoutes from "./routes/chatRoutes.js";
-// @ts-expect-error external-js-import
 import objectRoutes from "./routes/objectRoutes.js";
-// @ts-expect-error external-js-import
 import mapRoutes from "./routes/mapRoutes.js";
-// @ts-expect-error external-js-import
 import userRoutes from "./routes/userRoutes.js";
-// @ts-expect-error external-js-import
 import eventRoutes from "./routes/eventRoutes.js";
-// @ts-expect-error external-js-import
 import roomRoutes from "./routes/roomRoutes.js";
-// @ts-expect-error external-js-import
 import uploadRoutes from "./routes/uploadRoutes.js";
-// @ts-expect-error external-js-import
 import { registerChatHandlers } from "./controllers/chatController.js";
-// @ts-expect-error external-js-import
-// @ts-expect-error external-js-import
 import Room from "./models/Room.js";
-// @ts-expect-error external-js-import
 import RoomMember from "./models/RoomMember.js";
 
 // Tải biến môi trường
@@ -247,20 +235,19 @@ app.get("/api/rooms/:roomId/users", async (req: Request, res: Response) => {
     const { roomId } = req.params;
     
     // Get all room members from database (including offline)
-    // @ts-expect-error external-js-import
     const allMembers = await RoomMember.find({ roomId }).lean();
     
     // Get online users from connectedUsers
     const onlineUserIds = new Set(
       Array.from(connectedUsers.values())
-        .filter((u: any) => u.roomId === roomId)
-        .map((u: any) => u.userId)
+        .filter((u) => u.roomId === roomId)
+        .map((u) => u.userId)
     );
     
     // Combine database members with online status
     const users = allMembers.map((member) => {
       const connectedUser = Array.from(connectedUsers.values()).find(
-        (u: any) => u.userId === member.userId && u.roomId === roomId
+        (u) => u.userId === member.userId && u.roomId === roomId
       );
       
       return {
@@ -281,15 +268,34 @@ app.get("/api/rooms/:roomId/users", async (req: Request, res: Response) => {
 });
 
 // Error handling middleware (should be after all routes)
-// @ts-expect-error external-js-import
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 app.use(notFoundHandler);
 app.use(errorHandler);
 
 // Socket.IO Connection Handling
-const connectedUsers = new Map(); // socketId -> userData
-const roomUsers = new Map(); // roomId -> Set of socketIds
-const groupChats = new Map(); // groupId -> { id, name, members, roomId, createdBy }
+interface ConnectedUser {
+  userId: string;
+  username: string;
+  roomId: string;
+  avatar?: string;
+  position: { x: number; y: number };
+  direction?: string;
+  socketId: string;
+}
+
+interface GroupChat {
+  id: string;
+  name: string;
+  members: string[];
+  roomId: string;
+  createdBy: string;
+  createdAt: number;
+}
+
+const connectedUsers = new Map<string, ConnectedUser>(); // socketId -> userData
+const roomUsers = new Map<string, Set<string>>(); // roomId -> Set of socketIds
+const groupChats = new Map<string, GroupChat>(); // groupId -> { id, name, members, roomId, createdBy }
+const voiceChannels = new Map<string, Set<string>>(); // channelId -> Set of userIds (GLOBAL, shared across all connections)
 
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
@@ -312,10 +318,8 @@ io.on("connection", (socket) => {
       }
 
       // Get or create room
-      // @ts-expect-error external-js-import
       let room = await Room.findOne({ roomId });
       if (!room) {
-        // @ts-expect-error external-js-import
         room = new Room({
           roomId,
           name: `Room ${roomId}`,
@@ -371,7 +375,6 @@ io.on("connection", (socket) => {
 
       // Save/Update RoomMember in database FIRST (mark as online)
       try {
-        // @ts-expect-error external-js-import
         await RoomMember.findOneAndUpdate(
           { roomId, userId },
           {
@@ -391,9 +394,16 @@ io.on("connection", (socket) => {
       }
 
       // Load ALL room members from database AFTER updating
-      let allRoomMembers = [];
+      let allRoomMembers: Array<{
+        userId: string;
+        username: string;
+        avatar: string;
+        roomId: string;
+        isOnline: boolean;
+        lastSeen: Date;
+        [key: string]: unknown;
+      }> = [];
       try {
-        // @ts-expect-error external-js-import
         allRoomMembers = await RoomMember.find({ roomId }).lean();
         
         // Calculate online status AFTER user has been added to roomUsers
@@ -574,12 +584,10 @@ io.on("connection", (socket) => {
 
     const { targetUserId, offer } = data;
     const targetUser = Array.from(connectedUsers.values()).find(
-      (u: any) => u.userId === targetUserId && u.roomId === user.roomId
+      (u) => u.userId === targetUserId && u.roomId === user.roomId
     );
 
-    // @ts-expect-error external-js-import
     if (targetUser) {
-      // @ts-expect-error external-js-import
       io.to(targetUser.socketId).emit("webrtc-offer", {
         fromUserId: user.userId,
         offer,
@@ -595,12 +603,10 @@ io.on("connection", (socket) => {
 
     const { targetUserId, answer } = data;
     const targetUser = Array.from(connectedUsers.values()).find(
-      (u: any) => u.userId === targetUserId && u.roomId === user.roomId
+      (u) => u.userId === targetUserId && u.roomId === user.roomId
     );
 
-    // @ts-expect-error external-js-import
     if (targetUser) {
-      // @ts-expect-error external-js-import
       io.to(targetUser.socketId).emit("webrtc-answer", {
         fromUserId: user.userId,
         answer,
@@ -616,12 +622,10 @@ io.on("connection", (socket) => {
 
     const { targetUserId, candidate } = data;
     const targetUser = Array.from(connectedUsers.values()).find(
-      (u: any) => u.userId === targetUserId && u.roomId === user.roomId
+      (u) => u.userId === targetUserId && u.roomId === user.roomId
     );
 
-    // @ts-expect-error external-js-import
     if (targetUser) {
-      // @ts-expect-error external-js-import
       io.to(targetUser.socketId).emit("webrtc-ice-candidate", {
         fromUserId: user.userId,
         candidate,
@@ -630,6 +634,88 @@ io.on("connection", (socket) => {
       console.warn(
         `Target user ${targetUserId} not found for WebRTC ICE candidate`
       );
+    }
+  });
+
+  // Voice Channel Management (using global voiceChannels Map defined above)
+  socket.on("join-voice-channel", (data: { channelId: string; userId: string; roomId: string }) => {
+    const user = connectedUsers.get(socket.id);
+    if (!user) {
+      console.warn("join-voice-channel: User not found in connectedUsers");
+      return;
+    }
+
+    const { channelId, userId, roomId } = data;
+
+    // Verify user is in the same room
+    if (user.roomId !== roomId) {
+      console.warn(`User ${userId} tried to join voice channel in different room. User room: ${user.roomId}, Requested room: ${roomId}`);
+      return;
+    }
+
+    // Initialize channel if it doesn't exist
+    if (!voiceChannels.has(channelId)) {
+      voiceChannels.set(channelId, new Set());
+      console.log(`Created new voice channel: ${channelId}`);
+    }
+
+    // Add user to channel
+    voiceChannels.get(channelId)?.add(userId);
+
+    // Get all users in this voice channel
+    const channelUsers = Array.from(voiceChannels.get(channelId) || []);
+
+    console.log(`User ${user.username} (${userId}) joined voice channel ${channelId}. Total users: ${channelUsers.length}`, channelUsers);
+
+    // Get all sockets in the room
+    const roomSockets = Array.from(roomUsers.get(roomId) || []);
+    console.log(`Broadcasting to ${roomSockets.length} sockets in room ${roomId}`);
+
+    // Broadcast to all users in the room (including the user who just joined)
+    const updateData = {
+      channelId,
+      users: channelUsers,
+    };
+    
+    console.log(`✅ Broadcasting voice-channel-update for channel ${channelId} to room ${roomId} with ${channelUsers.length} users:`, channelUsers);
+    console.log(`✅ Room ${roomId} has ${roomSockets.length} sockets:`, roomSockets);
+    
+    // Broadcast to all sockets in the room
+    io.to(roomId).emit("voice-channel-update", updateData);
+    
+    // Also send directly to the socket to ensure it receives the update immediately
+    socket.emit("voice-channel-update", updateData);
+    console.log(`✅ Also sent voice-channel-update directly to socket ${socket.id}`);
+  });
+
+  socket.on("leave-voice-channel", (data: { channelId: string; userId: string; roomId: string }) => {
+    const user = connectedUsers.get(socket.id);
+    if (!user) return;
+
+    const { channelId, userId, roomId } = data;
+
+    // Remove user from channel
+    const channel = voiceChannels.get(channelId);
+    if (channel) {
+      channel.delete(userId);
+      
+      // If channel is empty, remove it
+      if (channel.size === 0) {
+        voiceChannels.delete(channelId);
+      }
+
+      // Get updated users list
+      const channelUsers = Array.from(channel);
+
+      console.log(`User ${user.username} (${userId}) left voice channel ${channelId}. Remaining users: ${channelUsers.length}`, channelUsers);
+
+      // Broadcast to all users in the room
+      io.to(roomId).emit("voice-channel-update", {
+        channelId,
+        users: channelUsers,
+      });
+
+      console.log(`Broadcasted voice-channel-update for channel ${channelId} to room ${roomId} with ${channelUsers.length} users`);
     }
   });
 
@@ -662,6 +748,22 @@ io.on("connection", (socket) => {
       
       const hasOtherConnections = remainingInRoom.length > 0;
 
+      // Remove user from all voice channels
+      voiceChannels.forEach((channelUsers, channelId) => {
+        if (channelUsers.has(userId)) {
+          channelUsers.delete(userId);
+          if (channelUsers.size === 0) {
+            voiceChannels.delete(channelId);
+          }
+          // Broadcast updated voice channel
+          io.to(roomId).emit("voice-channel-update", {
+            channelId,
+            users: Array.from(channelUsers),
+          });
+          console.log(`Removed user ${userId} from voice channel ${channelId} on disconnect`);
+        }
+      });
+
       // IMMEDIATELY broadcast user-left event (realtime)
       io.to(roomId).emit("user-left", {
         userId,
@@ -674,7 +776,6 @@ io.on("connection", (socket) => {
       if (!hasOtherConnections) {
         try {
           console.log(`Marking user ${userId} as offline in database`);
-          // @ts-expect-error external-js-import
           await RoomMember.findOneAndUpdate(
             { roomId, userId },
             {
@@ -685,20 +786,19 @@ io.on("connection", (socket) => {
           
           // Broadcast updated room members list to all users in room (with correct status)
           try {
-            // @ts-expect-error external-js-import
             const allRoomMembers = await RoomMember.find({ roomId }).lean();
             const onlineUserIds = new Set(
               Array.from(roomUsers.get(roomId) || [])
                 .map((id) => connectedUsers.get(id)?.userId)
-                .filter(Boolean)
+                .filter((id): id is string => id !== undefined)
             );
             
             // Use Map to deduplicate by userId (in case of database duplicates)
-            const membersMap = new Map();
+            const membersMap = new Map<string, any>();
             allRoomMembers.forEach((member) => {
               // Get position from connected users if online
               const connectedUser = Array.from(connectedUsers.values()).find(
-                (u: any) => u.userId === member.userId && u.roomId === roomId
+                (u) => u.userId === member.userId && u.roomId === roomId
               );
               
               // Deduplicate: if same userId exists, keep the latest one
@@ -736,7 +836,6 @@ io.on("connection", (socket) => {
       const finalUserCount = roomUsers.get(user.roomId)?.size || 0;
       if (roomUsers.has(user.roomId)) {
         try {
-          // @ts-expect-error external-js-import
           const room = await Room.findOne({ roomId: user.roomId });
           if (room) {
             io.to(user.roomId).emit("room-info", {

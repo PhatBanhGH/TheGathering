@@ -1,6 +1,28 @@
-import mongoose from "mongoose";
+import mongoose, { Document, Schema } from "mongoose";
 
-const eventSchema = new mongoose.Schema(
+export interface IEventAttendee {
+  userId: string;
+  username: string;
+  status: "going" | "maybe" | "not_going";
+}
+
+export interface IEvent extends Document {
+  eventId: string;
+  roomId: string;
+  title: string;
+  description: string;
+  startTime: Date;
+  endTime: Date;
+  createdBy: string;
+  attendees: IEventAttendee[];
+  location: string;
+  isRecurring: boolean;
+  recurrencePattern?: "daily" | "weekly" | "monthly" | null;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+const eventSchema = new Schema<IEvent>(
   {
     eventId: {
       type: String,
@@ -65,4 +87,5 @@ const eventSchema = new mongoose.Schema(
 eventSchema.index({ roomId: 1, startTime: 1 });
 eventSchema.index({ createdBy: 1 });
 
-export default mongoose.model("Event", eventSchema);
+export default mongoose.model<IEvent>("Event", eventSchema);
+

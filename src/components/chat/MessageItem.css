@@ -2,18 +2,32 @@
   display: flex;
   gap: 16px;
   padding: 4px 16px;
-  border-radius: 4px;
-  transition: background 0.15s;
+  border-radius: 8px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
+  animation: messageSlideIn 0.3s ease-out;
+}
+
+@keyframes messageSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Add subtle visual distinction for messages from different users */
 .message-item:not(.grouped) {
   border-left: 3px solid transparent;
+  padding-left: 13px;
 }
 
 .message-item:hover {
   background: var(--bg-message-hover, #f8f9fa);
+  transform: translateX(2px);
 }
 
 [data-theme="dark"] .message-item:hover {
@@ -42,9 +56,10 @@
   font-size: 16px;
   flex-shrink: 0;
   cursor: pointer;
-  transition: transform 0.2s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   border: 2px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15), 0 0 0 0 rgba(88, 101, 242, 0.4);
+  position: relative;
 }
 
 .message-item.grouped .message-avatar {
@@ -54,7 +69,12 @@
 }
 
 .message-avatar:hover {
-  transform: scale(1.05);
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2), 0 0 0 4px rgba(88, 101, 242, 0.2);
+}
+
+.message-avatar:active {
+  transform: scale(0.95);
 }
 
 .message-content-wrapper {
@@ -103,10 +123,12 @@
 
 .message-text {
   font-size: 16px;
-  line-height: 1.375;
+  line-height: 1.5;
   color: var(--text-primary, #060607);
   word-wrap: break-word;
   white-space: pre-wrap;
+  letter-spacing: 0.01em;
+  word-break: break-word;
 }
 
 .message-text strong {
@@ -183,13 +205,33 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 4px 8px;
+  padding: 4px 10px;
   background: var(--bg-input, #f8f9fa);
   border: 1px solid var(--border-color, #e3e5e8);
   border-radius: 12px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   font-size: 14px;
+  position: relative;
+  overflow: hidden;
+}
+
+.reaction-btn::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(88, 101, 242, 0.2);
+  transform: translate(-50%, -50%);
+  transition: width 0.3s, height 0.3s;
+}
+
+.reaction-btn:hover::before {
+  width: 100%;
+  height: 100%;
 }
 
 [data-theme="dark"] .reaction-btn {
@@ -200,6 +242,8 @@
 .reaction-btn:hover {
   background: var(--bg-hover, #f0f1f2);
   border-color: var(--accent-primary, #5865f2);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(88, 101, 242, 0.2);
 }
 
 [data-theme="dark"] .reaction-btn:hover {
@@ -210,6 +254,11 @@
   background: var(--accent-primary, #5865f2);
   border-color: var(--accent-primary, #5865f2);
   color: white;
+  box-shadow: 0 2px 8px rgba(88, 101, 242, 0.4);
+}
+
+.reaction-btn:active {
+  transform: translateY(0) scale(0.95);
 }
 
 .reaction-emoji {
@@ -225,33 +274,66 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  margin-top: 4px;
-  padding: 4px;
+  margin-top: 6px;
+  padding: 6px 8px;
   background: var(--bg-input, #f8f9fa);
-  border-radius: 4px;
+  border-radius: 6px;
+  animation: fadeIn 0.2s ease-out;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 [data-theme="dark"] .message-actions {
   background: var(--bg-input, #40444b);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .action-btn {
-  padding: 4px 8px;
+  padding: 6px 10px;
   background: transparent;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-secondary, #4e5058);
-  transition: all 0.2s;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  font-weight: 500;
+  position: relative;
+}
+
+.action-btn::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  height: 2px;
+  background: var(--accent-primary, #5865f2);
+  transform: translateX(-50%);
+  transition: width 0.2s;
+}
+
+.action-btn:hover::after {
+  width: 80%;
 }
 
 .action-btn:hover {
   background: var(--bg-hover, #f0f1f2);
   color: var(--text-primary, #060607);
+  transform: translateY(-1px);
 }
 
 [data-theme="dark"] .action-btn:hover {
@@ -264,8 +346,16 @@
   color: white;
 }
 
+.action-btn.delete:hover::after {
+  background: white;
+}
+
 [data-theme="dark"] .action-btn.delete:hover {
   background: var(--accent-danger, #f04747);
+}
+
+.action-btn:active {
+  transform: translateY(0) scale(0.95);
 }
 
 .message-edit {

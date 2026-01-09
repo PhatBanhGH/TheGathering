@@ -1,4 +1,87 @@
+import { Server, Socket } from "socket.io";
 import Message from "../models/Message.js";
+
+interface ConnectedUser {
+  userId: string;
+  username: string;
+  roomId: string;
+  avatar?: string;
+  position: { x: number; y: number };
+  direction?: string;
+  socketId: string;
+}
+
+interface GroupChat {
+  id: string;
+  name: string;
+  members: string[];
+  roomId: string;
+  createdBy: string;
+  createdAt: number;
+}
+
+interface ChatHandlersParams {
+  io: Server;
+  socket: Socket;
+  connectedUsers: Map<string, ConnectedUser>;
+  roomUsers: Map<string, Set<string>>;
+  groupChats: Map<string, GroupChat>;
+}
+
+interface ChatMessageData {
+  id?: string;
+  message?: string;
+  content?: string;
+  type?: "nearby" | "global" | "dm" | "group";
+  targetUserId?: string;
+  groupId?: string;
+  channelId?: string;
+  timestamp?: number;
+  editedAt?: number | null;
+  replyTo?: {
+    id: string;
+    username: string;
+    message: string;
+  } | null;
+  reactions?: Array<{
+    emoji: string;
+    users: string[];
+  }>;
+  attachments?: Array<{
+    filename: string;
+    originalName: string;
+    mimeType: string;
+    size: number;
+    url: string;
+  }>;
+}
+
+interface MessageReactionData {
+  messageId: string;
+  emoji: string;
+  userId: string;
+  roomId?: string;
+}
+
+interface EditMessageData {
+  messageId: string;
+  newContent: string;
+  userId: string;
+  roomId?: string;
+}
+
+interface DeleteMessageData {
+  messageId: string;
+  userId: string;
+  roomId?: string;
+}
+
+interface CreateGroupChatData {
+  groupId: string;
+  name: string;
+  members: string[];
+  roomId: string;
+}
 
 export const registerChatHandlers = ({
   io,
@@ -6,9 +89,9 @@ export const registerChatHandlers = ({
   connectedUsers,
   roomUsers,
   groupChats,
-}) => {
+}: ChatHandlersParams): void => {
   // Handle group chat creation
-  socket.on("create-group-chat", (data) => {
+  socket.on("create-group-chat", (data: CreateGroupChatData) => {
     const user = connectedUsers.get(socket.id);
     if (!user) return;
 
@@ -29,7 +112,7 @@ export const registerChatHandlers = ({
       return;
     }
 
-    const groupChat = {
+    const groupChat: GroupChat = {
       id: groupId,
       name,
       members: validMembers,
@@ -55,7 +138,7 @@ export const registerChatHandlers = ({
     );
   });
 
-  socket.on("chat-message", async (data) => {
+  socket.on("chat-message", async (data: ChatMessageData) => {
     const user = connectedUsers.get(socket.id);
     if (!user) {
       console.warn(
@@ -101,7 +184,7 @@ export const registerChatHandlers = ({
 
     console.log("Processing chat message:", message);
 
-    const recipients = [];
+    const recipients: string[] = [];
 
     if (message.type === "nearby") {
       const nearbyUsers = Array.from(roomUsers.get(user.roomId) || [])
@@ -142,7 +225,7 @@ export const registerChatHandlers = ({
         ...Array.from(roomUsers.get(user.roomId) || []).map((id) => {
           const recipient = connectedUsers.get(id);
           return recipient?.userId;
-        })
+        }).filter((id): id is string => id !== undefined)
       );
       console.log(`📢 Broadcasted global message to room ${user.roomId} to ${recipients.length} recipients`);
     } else if (message.type === "group" && message.groupId) {
@@ -220,7 +303,7 @@ export const registerChatHandlers = ({
 
     // Persist message
     try {
-      const messageDoc = {
+      const messageDoc: any = {
         roomId: user.roomId,
         senderId: user.userId,
         senderName: user.username,
@@ -230,12 +313,12 @@ export const registerChatHandlers = ({
         groupId: message.groupId,
         channelId: message.channelId,
         recipients: recipients.filter(Boolean),
-        timestamp: message.timestamp,
+        timestamp: new Date(message.timestamp),
       };
       
       // Add optional fields if they exist
       if (message.editedAt) {
-        messageDoc.editedAt = message.editedAt;
+        messageDoc.editedAt = new Date(message.editedAt);
       }
       if (message.replyTo) {
         messageDoc.replyTo = message.replyTo;
@@ -243,8 +326,8 @@ export const registerChatHandlers = ({
       if (message.reactions && message.reactions.length > 0) {
         messageDoc.reactions = message.reactions;
       }
-      if (message.attachments && message.attachments.length > 0) {
-        messageDoc.attachments = message.attachments;
+      if (data.attachments && data.attachments.length > 0) {
+        messageDoc.attachments = data.attachments;
       }
       
       await Message.create(messageDoc);
@@ -256,7 +339,7 @@ export const registerChatHandlers = ({
   });
 
   // Handle message reaction
-  socket.on("message-reaction", (data) => {
+  socket.on("message-reaction", (data: MessageReactionData) => {
     const user = connectedUsers.get(socket.id);
     if (!user) return;
 
@@ -276,7 +359,7 @@ export const registerChatHandlers = ({
   });
 
   // Handle message edit
-  socket.on("edit-message", (data) => {
+  socket.on("edit-message", (data: EditMessageData) => {
     const user = connectedUsers.get(socket.id);
     if (!user) return;
 
@@ -297,7 +380,7 @@ export const registerChatHandlers = ({
   });
 
   // Handle message delete
-  socket.on("delete-message", (data) => {
+  socket.on("delete-message", (data: DeleteMessageData) => {
     const user = connectedUsers.get(socket.id);
     if (!user) return;
 
@@ -315,3 +398,4 @@ export const registerChatHandlers = ({
     console.log(`✅ User ${user.username} deleted message ${messageId} - broadcasted to room ${targetRoomId}`);
   });
 };
+

@@ -29,3 +29,4 @@ router.put("/:objectId/whiteboard", updateWhiteboardContent);
 router.delete("/:objectId", deleteObject);
 
 export default router;
+

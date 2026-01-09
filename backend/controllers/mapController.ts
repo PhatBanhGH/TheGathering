@@ -1,28 +1,12 @@
+import { Request, Response } from "express";
 import Map from "../models/Map.js";
 
-// Get map by roomId
-export const getMapByRoom = async (req, res) => {
-  try {
-    const { roomId } = req.params;
-    let map = await Map.findOne({ roomId });
-
-    // If no map exists, create default map
-    if (!map) {
-      map = await createDefaultMap(roomId);
-    }
-
-    res.json(map);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
 // Create default map
-const createDefaultMap = async (roomId) => {
+const createDefaultMap = async (roomId: string) => {
   const width = 50;
   const height = 50;
-  const tiles = [];
-  const collision = [];
+  const tiles: number[][] = [];
+  const collision: boolean[][] = [];
 
   // Initialize with floor tiles (0) and no collision
   for (let y = 0; y < height; y++) {
@@ -70,8 +54,26 @@ const createDefaultMap = async (roomId) => {
   return map;
 };
 
+// Get map by roomId
+export const getMapByRoom = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { roomId } = req.params;
+    let map = await Map.findOne({ roomId });
+
+    // If no map exists, create default map
+    if (!map) {
+      map = await createDefaultMap(roomId);
+    }
+
+    res.json(map);
+  } catch (error) {
+    const err = error as Error;
+    res.status(500).json({ message: err.message });
+  }
+};
+
 // Update map
-export const updateMap = async (req, res) => {
+export const updateMap = async (req: Request, res: Response): Promise<void> => {
   try {
     const { roomId } = req.params;
     const updates = req.body;
@@ -90,24 +92,26 @@ export const updateMap = async (req, res) => {
     if (updates.zones) map.zones = updates.zones;
     if (updates.backgroundImage !== undefined) map.backgroundImage = updates.backgroundImage;
 
-    map.updatedAt = Date.now();
+    map.updatedAt = new Date();
     await map.save();
 
     res.json(map);
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    const err = error as Error;
+    res.status(400).json({ message: err.message });
   }
 };
 
 // Create new map
-export const createMap = async (req, res) => {
+export const createMap = async (req: Request, res: Response): Promise<void> => {
   try {
     const { roomId, name, width, height, tiles, collision } = req.body;
 
     // Check if map already exists
     const existing = await Map.findOne({ roomId });
     if (existing) {
-      return res.status(400).json({ message: "Map already exists for this room" });
+      res.status(400).json({ message: "Map already exists for this room" });
+      return;
     }
 
     const mapId = `map-${roomId}-${Date.now()}`;
@@ -118,7 +122,6 @@ export const createMap = async (req, res) => {
       width: width || 50,
       height: height || 50,
       tileSize: 32,
-      tileSize: 32,
       tiles: tiles || [],
       collision: collision || [],
       backgroundImage: req.body.backgroundImage || null,
@@ -127,7 +130,8 @@ export const createMap = async (req, res) => {
     await map.save();
     res.status(201).json(map);
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    const err = error as Error;
+    res.status(400).json({ message: err.message });
   }
 };
 

@@ -14,72 +14,104 @@ export const useChatChannels = (roomId: string) => {
   );
   const [viewedChannels, setViewedChannels] = useState<Set<string>>(new Set());
 
-  // Initialize default channels
+  // Initialize default channels (only once, don't reset if already initialized)
   useEffect(() => {
-    const defaultChannels: Channel[] = [
-      {
-        id: "general",
-        name: "general",
-        type: "text",
-        description: "Share company-wide updates, wins, announcements",
-      },
-      {
-        id: "social",
-        name: "social",
-        type: "text",
-        description: "Casual conversations and social interactions",
-      },
-    ];
-    setChannels(defaultChannels);
-
-    const defaultVoiceChannels: VoiceChannel[] = [
-      { id: "general-voice", name: "Chat chung", users: [], isActive: false },
-    ];
-    setVoiceChannels(defaultVoiceChannels);
-  }, []);
-
-  // Update voice channels with real user data
-  useEffect(() => {
-    if (!currentUser) return;
+    setChannels((prev) => {
+      if (prev.length > 0) {
+        // Already initialized, don't reset
+        return prev;
+      }
+      return [
+        {
+          id: "general",
+          name: "general",
+          type: "text",
+          description: "Share company-wide updates, wins, announcements",
+        },
+        {
+          id: "social",
+          name: "social",
+          type: "text",
+          description: "Casual conversations and social interactions",
+        },
+      ];
+    });
 
     setVoiceChannels((prev) => {
-      return prev.map((vc) => {
-        const usersInChannel: string[] = [];
-
-        // Add current user if they're in this channel
-        if (currentVoiceChannel === vc.id) {
-          usersInChannel.push(currentUser.userId);
-        }
-
-        return {
-          ...vc,
-          users: usersInChannel,
-          isActive: usersInChannel.length > 0,
-        };
-      });
+      if (prev.length > 0) {
+        // Already initialized, don't reset - preserve users from server
+        console.log("Voice channels already initialized, preserving state:", prev);
+        return prev;
+      }
+      console.log("Initializing default voice channels");
+      return [
+        { id: "general-voice", name: "Chat chung", users: [], isActive: false },
+      ];
     });
-  }, [users, currentUser, currentVoiceChannel]);
+  }, []);
+
+  // Don't override voice channel users - they come from server via voice-channel-update event
+  // This useEffect was causing the issue by resetting users to only current user
+  // Removed to let server be the source of truth
 
   // Listen for voice channel updates from socket
   useEffect(() => {
-    if (!socket) return;
+    if (!socket) {
+      console.log("Socket not available for voice-channel-update listener");
+      return;
+    }
+
+    console.log("Setting up voice-channel-update listener");
 
     const handleVoiceChannelUpdate = (data: {
       channelId: string;
       users: string[];
     }) => {
-      setVoiceChannels((prev) =>
-        prev.map((vc) =>
-          vc.id === data.channelId
-            ? { ...vc, users: data.users, isActive: data.users.length > 0 }
-            : vc
-        )
-      );
+      console.log("✅ Received voice-channel-update:", {
+        channelId: data.channelId,
+        users: data.users,
+        usersCount: data.users.length,
+      });
+      setVoiceChannels((prev) => {
+        // Check if channel exists
+        const channelExists = prev.some((vc) => vc.id === data.channelId);
+        
+        if (!channelExists) {
+          console.warn(`Channel ${data.channelId} not found in voiceChannels, adding it`);
+          // Channel doesn't exist, add it
+          return [
+            ...prev,
+            {
+              id: data.channelId,
+              name: data.channelId, // Default name, should be set from server
+              users: data.users,
+              isActive: data.users.length > 0,
+            },
+          ];
+        }
+
+        const updated = prev.map((vc) => {
+          if (vc.id === data.channelId) {
+            console.log(`Updating channel ${vc.id}:`, {
+              oldUsers: vc.users,
+              newUsers: data.users,
+              oldCount: vc.users.length,
+              newCount: data.users.length,
+            });
+            return { ...vc, users: data.users, isActive: data.users.length > 0 };
+          }
+          return vc;
+        });
+        console.log("Updated voice channels:", updated.map(vc => ({ id: vc.id, users: vc.users, count: vc.users.length })));
+        return updated;
+      });
     };
 
     socket.on("voice-channel-update", handleVoiceChannelUpdate);
+    console.log("Voice-channel-update listener registered");
 
     return () => {
+      console.log("Cleaning up voice-channel-update listener");
       socket.off("voice-channel-update", handleVoiceChannelUpdate);
     };
   }, [socket]);
@@ -102,20 +134,9 @@ export const useChatChannels = (roomId: string) => {
         roomId,
       });
 
-      // Optimistically update local state
-      setVoiceChannels((prev) =>
-        prev.map((vc) =>
-          vc.id === channelId
-            ? {
-                ...vc,
-                users: vc.users.includes(currentUser.userId)
-                  ? vc.users
-                  : [...vc.users, currentUser.userId],
-                isActive: true,
-              }
-            : vc
-        )
-      );
+      // Don't optimistically update - wait for server response
+      // The server will broadcast voice-channel-update with the correct list
+      console.log("Emitted join-voice-channel, waiting for server response...");
     },
     [socket, currentUser, roomId, currentVoiceChannel]
   );
@@ -125,26 +146,15 @@ export const useChatChannels = (roomId: string) => {
 
     const channelToLeave = currentVoiceChannel;
 
+    console.log("Leaving voice channel:", channelToLeave);
+
     socket.emit("leave-voice-channel", {
       channelId: channelToLeave,
       userId: currentUser.userId,
       roomId,
     });
 
-    // Optimistically update local state
-    setVoiceChannels((prev) =>
-      prev.map((vc) =>
-        vc.id === channelToLeave
-          ? {
-              ...vc,
-              users: vc.users.filter((id) => id !== currentUser.userId),
-              isActive:
-                vc.users.filter((id) => id !== currentUser.userId).length > 0,
-            }
-          : vc
-      )
-    );
-
+    // Don't optimistically update - wait for server response
     setCurrentVoiceChannel(null);
   }, [socket, currentUser, roomId, currentVoiceChannel]);
 

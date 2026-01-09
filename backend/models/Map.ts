@@ -1,6 +1,34 @@
-import mongoose from "mongoose";
+import mongoose, { Document, Schema } from "mongoose";
 
-const mapSchema = new mongoose.Schema(
+export interface IZone {
+  id: string;
+  name: string;
+  bounds: {
+    x1: number;
+    y1: number;
+    x2: number;
+    y2: number;
+  };
+  maxUsers: number;
+}
+
+export interface IMap extends Document {
+  mapId: string;
+  roomId: string;
+  name: string;
+  width: number;
+  height: number;
+  tileSize: number;
+  backgroundImage?: string | null;
+  tiles: number[][];
+  collision: boolean[][];
+  zones: IZone[];
+  createdBy?: string | null;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+const mapSchema = new Schema<IMap>(
   {
     mapId: {
       type: String,
@@ -70,5 +98,5 @@ const mapSchema = new mongoose.Schema(
 // Index for efficient queries
 mapSchema.index({ roomId: 1 });
 
-export default mongoose.model("Map", mapSchema);
+export default mongoose.model<IMap>("Map", mapSchema);
 

@@ -1,18 +1,23 @@
-import express from "express";
+import express, { Request, Response } from "express";
 import Message from "../models/Message.js";
 
 const router = express.Router();
 
-router.get("/history/:roomId", async (req, res) => {
+router.get("/history/:roomId", async (req: Request, res: Response): Promise<void> => {
   try {
     const { roomId } = req.params;
     const { limit = 100, type, channelId } = req.query;
-    const query = { roomId };
+    interface QueryType {
+      roomId: string;
+      type?: string;
+      channelId?: string;
+    }
+    const query: QueryType = { roomId };
     if (type) {
-      query.type = type;
+      query.type = type as string;
     }
     if (channelId) {
-      query.channelId = channelId;
+      query.channelId = channelId as string;
     }
     const messages = await Message.find(query)
       .sort({ timestamp: 1 }) // Sort ascending to get chronological order
@@ -43,25 +48,33 @@ router.get("/history/:roomId", async (req, res) => {
 });
 
 // Search messages endpoint
-router.get("/search/:roomId", async (req, res) => {
+router.get("/search/:roomId", async (req: Request, res: Response): Promise<void> => {
   try {
     const { roomId } = req.params;
     const { q, type, channelId, limit = 50 } = req.query;
 
-    if (!q || q.trim().length === 0) {
-      return res.status(400).json({ message: "Search query is required" });
+    if (!q || (typeof q === "string" && q.trim().length === 0)) {
+      res.status(400).json({ message: "Search query is required" });
+      return;
     }
 
-    const query = {
+    interface QueryType {
+      roomId: string;
+      content: { $regex: string; $options: string };
+      type?: string;
+      channelId?: string;
+    }
+
+    const query: QueryType = {
       roomId,
-      content: { $regex: q, $options: "i" }, // Case-insensitive search
+      content: { $regex: q as string, $options: "i" }, // Case-insensitive search
     };
 
     if (type) {
-      query.type = type;
+      query.type = type as string;
     }
     if (channelId) {
-      query.channelId = channelId;
+      query.channelId = channelId as string;
     }
 
     const messages = await Message.find(query)
@@ -96,5 +109,4 @@ router.get("/search/:roomId", async (req, res) => {
 });
 
 export default router;
-
 

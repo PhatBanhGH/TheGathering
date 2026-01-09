@@ -3,70 +3,83 @@ import { useWebRTC } from '../contexts/WebRTCContext';
 import { useSocket } from '../contexts/SocketContext';
 import './VideoChat.css';
 
+// 1. Tạo Component con để xử lý từng Video riêng biệt
+// Điều này giúp cô lập logic gán srcObject, tránh conflict ref
+const VideoPlayer = ({ 
+  stream, 
+  username, 
+  isLocal = false 
+}: { 
+  stream: MediaStream | undefined | null, 
+  username: string, 
+  isLocal?: boolean 
+}) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    // Chỉ gán stream khi ref đã sẵn sàng và stream có dữ liệu
+    if (videoRef.current && stream) {
+      console.log(`📹 VideoPlayer: Setting srcObject for ${username} (${isLocal ? 'local' : 'remote'}):`, {
+        streamId: stream.id,
+        tracks: stream.getTracks().map(t => ({
+          kind: t.kind,
+          enabled: t.enabled,
+          readyState: t.readyState,
+        })),
+      });
+      videoRef.current.srcObject = stream;
+      
+      // Force play to bypass autoplay policy
+      videoRef.current.play().catch((err) => {
+        console.warn(`⚠️ Autoplay prevented for ${username}:`, err);
+      });
+    } else if (videoRef.current && !stream) {
+      // Clear srcObject if stream is removed
+      videoRef.current.srcObject = null;
+    }
+  }, [stream, username, isLocal]);
+
+  return (
+    <div className={`video-item ${isLocal ? 'local' : 'remote'}`}>
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline // Bắt buộc cho mobile/một số trình duyệt
+        muted={isLocal} // Mute chính mình để tránh hú (feedback loop)
+        className="video-element"
+        onLoadedMetadata={() => {
+          console.log(`✅ Video metadata loaded for ${username}`);
+          // Try to play again when metadata is loaded
+          videoRef.current?.play().catch((err) => {
+            console.warn(`⚠️ Play failed for ${username}:`, err);
+          });
+        }}
+        onCanPlay={() => {
+          console.log(`✅ Video can play for ${username}`);
+          // Try to play when ready
+          videoRef.current?.play().catch((err) => {
+            console.warn(`⚠️ Play failed for ${username}:`, err);
+          });
+        }}
+        onError={(e) => {
+          console.error(`❌ Video error for ${username}:`, e);
+        }}
+      />
+      <div className="video-overlay">
+        <span className="video-username">{username}</span>
+      </div>
+    </div>
+  );
+};
+
 const VideoChat = () => {
   const { localStream, peers } = useWebRTC();
   const { users, currentUser } = useSocket();
-  const localVideoRef = useRef<HTMLVideoElement>(null);
-  const remoteVideosRef = useRef<Map<string, HTMLVideoElement>>(new Map());
 
-  useEffect(() => {
-    if (localVideoRef.current && localStream) {
-      localVideoRef.current.srcObject = localStream;
-    }
-  }, [localStream]);
+  // Chuyển đổi Map peers sang Array để render trong JSX
+  const peersArray = Array.from(peers.values());
 
-  useEffect(() => {
-    peers.forEach((peerConn, userId) => {
-      if (peerConn.stream) {
-        let videoElement = remoteVideosRef.current.get(userId);
-        if (!videoElement) {
-          // Create video wrapper
-          const videoWrapper = document.createElement('div');
-          videoWrapper.className = 'video-item remote';
-          
-          // Create video element
-          videoElement = document.createElement('video');
-          videoElement.autoplay = true;
-          videoElement.playsInline = true;
-          videoElement.className = 'video-element';
-          
-          // Create overlay with username
-          const overlay = document.createElement('div');
-          overlay.className = 'video-overlay';
-          const usernameSpan = document.createElement('span');
-          usernameSpan.className = 'video-username';
-          const peerUser = users.find(u => u.userId === userId);
-          usernameSpan.textContent = peerUser?.username || 'User';
-          overlay.appendChild(usernameSpan);
-          
-          // Assemble wrapper
-          videoWrapper.appendChild(videoElement);
-          videoWrapper.appendChild(overlay);
-          
-          remoteVideosRef.current.set(userId, videoElement);
-          
-          const container = document.getElementById('remote-videos-container');
-          if (container) {
-            container.appendChild(videoWrapper);
-          }
-        }
-        videoElement.srcObject = peerConn.stream;
-      }
-    });
-
-    // Clean up removed peers
-    remoteVideosRef.current.forEach((videoElement, userId) => {
-      if (!peers.has(userId)) {
-        const wrapper = videoElement.parentElement;
-        if (wrapper) {
-          wrapper.remove();
-        }
-        remoteVideosRef.current.delete(userId);
-      }
-    });
-  }, [peers, users]);
-
-  // Get nearby users for video display (within 150 pixels)
+  // Logic hiển thị chỉ khi có video (giữ nguyên logic cũ của bạn)
   const nearbyUsers = users.filter((user) => {
     if (user.userId === currentUser?.userId || !currentUser) return false;
     const distance = Math.sqrt(
@@ -76,6 +89,7 @@ const VideoChat = () => {
     return distance < 150;
   });
 
+  // Nếu không có ai gần, không có stream local và không có peer kết nối -> Ẩn
   if (nearbyUsers.length === 0 && !localStream && peers.size === 0) {
     return null;
   }
@@ -85,28 +99,40 @@ const VideoChat = () => {
 
   return (
     <div className={`video-chat-container ${isGrid ? 'grid-layout' : 'single-layout'}`}>
-      {localStream && (
-        <div className="video-item local">
-          <video
-            ref={localVideoRef}
-            autoPlay
-            playsInline
-            muted
-            className="video-element"
-          />
-          {currentUser && (
-            <div className="video-overlay">
-              <span className="video-username">{currentUser.username}</span>
-            </div>
-          )}
-        </div>
+      {/* 2. Render Local Stream */}
+      {localStream && currentUser && (
+        <VideoPlayer 
+          stream={localStream} 
+          username={currentUser.username || "Me"} 
+          isLocal={true} 
+        />
       )}
+
+      {/* 3. Render Remote Peers - Sử dụng React Map thay vì appendChild */}
       <div id="remote-videos-container" className={`remote-videos-wrapper ${isGrid ? 'grid' : 'stack'}`}>
-        {/* Remote videos are dynamically added here */}
+        {peersArray.map((peerConn) => {
+          // Tìm username tương ứng với userId của peer
+          const peerUser = users.find(u => u.userId === peerConn.userId);
+          const username = peerUser?.username || peerConn.userId;
+
+          // Chỉ render nếu peer có stream (hoặc render khung loading tùy bạn)
+          if (!peerConn.stream) {
+            console.log(`⏳ Peer ${peerConn.userId} has no stream yet, skipping render`);
+            return null;
+          }
+
+          return (
+            <VideoPlayer
+              key={peerConn.userId} // Key quan trọng để React không render lại nhầm component
+              stream={peerConn.stream}
+              username={username}
+              isLocal={false}
+            />
+          );
+        })}
       </div>
     </div>
   );
 };
 
 export default VideoChat;
-

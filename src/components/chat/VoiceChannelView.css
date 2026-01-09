@@ -1,0 +1,316 @@
+.voice-channel-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg-chat-area, #36393f);
+  color: var(--text-primary, #dcddde);
+}
+
+/* Header */
+.voice-channel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border-color, #202225);
+  background: var(--bg-channel-list, #2f3136);
+}
+
+.voice-channel-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.voice-channel-icon {
+  font-size: 20px;
+}
+
+.voice-channel-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-primary, #dcddde);
+}
+
+.voice-channel-count {
+  font-size: 14px;
+  color: var(--text-muted, #72767d);
+}
+
+.voice-channel-leave-btn {
+  padding: 8px 16px;
+  background: var(--accent-danger, #f04747);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.voice-channel-leave-btn:hover {
+  background: var(--accent-danger, #d84040);
+  transform: translateY(-1px);
+}
+
+/* Video Grid */
+.voice-channel-grid {
+  flex: 1;
+  display: grid;
+  gap: 16px;
+  padding: 24px;
+  overflow-y: auto;
+  align-content: start;
+  min-height: 0;
+}
+
+.voice-user-card {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg-input, #40444b);
+  border: 2px solid transparent;
+  transition: all 0.2s;
+}
+
+.voice-user-card:hover {
+  border-color: var(--accent-primary, #5865f2);
+  transform: scale(1.02);
+}
+
+.voice-user-card.current-user {
+  border-color: var(--accent-primary, #5865f2);
+  box-shadow: 0 0 0 2px rgba(88, 101, 242, 0.3);
+}
+
+.voice-user-video-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.voice-user-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #000;
+}
+
+.voice-user-avatar {
+  position: absolute;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  font-weight: 600;
+  color: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 1;
+}
+
+.voice-user-video-placeholder {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-input, #40444b);
+  z-index: 0;
+}
+
+.voice-user-loading {
+  color: var(--text-muted, #72767d);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.voice-user-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.8), transparent);
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.voice-user-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.voice-user-muted {
+  font-size: 18px;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.voice-user-video-indicator {
+  font-size: 14px;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.voice-user-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+/* Controls Bar */
+.voice-channel-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  background: var(--bg-user-list, #2f3136);
+  border-top: 1px solid var(--border-color, #202225);
+  gap: 16px;
+}
+
+.voice-controls-left,
+.voice-controls-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.voice-controls-center {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+.voice-control-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--bg-input, #40444b);
+  border: none;
+  border-radius: 4px;
+  color: var(--text-primary, #dcddde);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+  min-width: 44px;
+  height: 44px;
+}
+
+.voice-control-btn:hover {
+  background: var(--bg-hover, #3c3f44);
+  transform: translateY(-1px);
+}
+
+.voice-control-btn.active {
+  background: var(--accent-primary, #5865f2);
+  color: white;
+}
+
+.voice-control-btn.active:hover {
+  background: var(--accent-primary, #4752c4);
+}
+
+.voice-control-btn.muted {
+  background: var(--accent-danger, #f04747);
+  color: white;
+}
+
+.voice-control-btn.muted:hover {
+  background: var(--accent-danger, #d84040);
+}
+
+.voice-control-btn.leave-btn {
+  background: var(--accent-danger, #f04747);
+  color: white;
+  padding: 10px 20px;
+}
+
+.voice-control-btn.leave-btn:hover {
+  background: var(--accent-danger, #d84040);
+}
+
+/* Scrollbar */
+.voice-channel-grid::-webkit-scrollbar {
+  width: 8px;
+}
+
+.voice-channel-grid::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.voice-channel-grid::-webkit-scrollbar-thumb {
+  background: var(--bg-scrollbar, #202225);
+  border-radius: 4px;
+}
+
+.voice-channel-grid::-webkit-scrollbar-thumb:hover {
+  background: var(--bg-scrollbar-hover, #1a1c1f);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .voice-channel-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .voice-channel-controls {
+    flex-wrap: wrap;
+    padding: 12px;
+  }
+
+  .voice-controls-center {
+    order: 3;
+    width: 100%;
+    margin-top: 8px;
+  }
+}
+
+/* Light theme */
+[data-theme="light"] .voice-channel-view {
+  background: var(--bg-chat-area, #ffffff);
+}
+
+[data-theme="light"] .voice-channel-header {
+  background: var(--bg-channel-list, #ffffff);
+  border-color: var(--border-color, #e3e5e8);
+}
+
+[data-theme="light"] .voice-channel-controls {
+  background: var(--bg-user-list, #f2f3f5);
+  border-color: var(--border-color, #e3e5e8);
+}
+
+[data-theme="light"] .voice-user-card {
+  background: var(--bg-input, #f8f9fa);
+}
+
+[data-theme="light"] .voice-control-btn {
+  background: var(--bg-input, #f8f9fa);
+  color: var(--text-primary, #060607);
+}
+
+[data-theme="light"] .voice-control-btn:hover {
+  background: var(--bg-hover, #f0f1f2);
+}
+

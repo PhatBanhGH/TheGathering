@@ -1,9 +1,12 @@
+// CRITICAL: Import polyfills FIRST before any other imports
+import "./polyfills/process"; // Must be first - provides process.nextTick for simple-peer
+// events package is now used directly via vite.config.ts alias
+
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import "./index.css";
 import { preventDoubleTapZoom } from "./utils/mobile";
-import "./polyfills/process";
 
 // Prevent double tap zoom on mobile
 preventDoubleTapZoom();
