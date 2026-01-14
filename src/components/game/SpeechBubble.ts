@@ -10,6 +10,12 @@ export class SpeechBubble {
     container: Phaser.GameObjects.Container,
     message: string
   ): void {
+    // Check if scene and container are valid
+    if (!scene || !container || !scene.add) {
+      console.warn("SpeechBubble: Invalid scene or container");
+      return;
+    }
+
     const existingBubble = container.getData("speechBubble");
     if (existingBubble) {
       existingBubble.destroy();

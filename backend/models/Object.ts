@@ -79,8 +79,10 @@ const objectSchema = new Schema<IObject>(
   }
 );
 
-// Index for efficient queries
-objectSchema.index({ roomId: 1, isActive: 1 });
+// Indexes for performance optimization
+objectSchema.index({ roomId: 1, isActive: 1 }); // For active objects in room
+objectSchema.index({ createdBy: 1 }); // For user's objects
+objectSchema.index({ type: 1, roomId: 1 }); // For type-based queries
 
 export default mongoose.model<IObject>("Object", objectSchema);
 

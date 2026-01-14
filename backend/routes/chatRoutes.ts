@@ -6,7 +6,12 @@ const router = express.Router();
 router.get("/history/:roomId", async (req: Request, res: Response): Promise<void> => {
   try {
     const { roomId } = req.params;
-    const { limit = 100, type, channelId } = req.query;
+    const { limit = 100, skip = 0, type, channelId } = req.query;
+    
+    // Validate and sanitize inputs
+    const limitNum = Math.min(Number(limit) || 100, 500); // Max 500 messages
+    const skipNum = Math.max(Number(skip) || 0, 0);
+    
     interface QueryType {
       roomId: string;
       type?: string;
@@ -19,13 +24,18 @@ router.get("/history/:roomId", async (req: Request, res: Response): Promise<void
     if (channelId) {
       query.channelId = channelId as string;
     }
+    
+    // Use indexes for better performance
     const messages = await Message.find(query)
-      .sort({ timestamp: 1 }) // Sort ascending to get chronological order
-      .limit(Number(limit))
-      .lean();
+      .sort({ timestamp: -1 }) // Sort descending (newest first) for pagination
+      .skip(skipNum)
+      .limit(limitNum)
+      .lean()
+      .exec(); // Use exec() for better performance
 
     // Transform to match frontend ChatMessage format
-    const formattedMessages = messages.map((msg) => ({
+    // Reverse to get chronological order (oldest first)
+    const formattedMessages = messages.reverse().map((msg) => ({
       id: msg._id.toString(),
       userId: msg.senderId,
       username: msg.senderName,
@@ -40,7 +50,18 @@ router.get("/history/:roomId", async (req: Request, res: Response): Promise<void
       reactions: msg.reactions || [],
     }));
 
-    res.json(formattedMessages);
+    // Get total count for pagination info
+    const totalCount = await Message.countDocuments(query);
+
+    res.json({
+      messages: formattedMessages,
+      pagination: {
+        total: totalCount,
+        limit: limitNum,
+        skip: skipNum,
+        hasMore: skipNum + limitNum < totalCount,
+      },
+    });
   } catch (error) {
     console.error("Failed to fetch chat history", error);
     res.status(500).json({ message: "Failed to fetch chat history" });
@@ -77,10 +98,14 @@ router.get("/search/:roomId", async (req: Request, res: Response): Promise<void>
       query.channelId = channelId as string;
     }
 
+    // Validate limit
+    const limitNum = Math.min(Number(limit) || 50, 100); // Max 100 results
+    
     const messages = await Message.find(query)
       .sort({ timestamp: -1 }) // Most recent first
-      .limit(Number(limit))
-      .lean();
+      .limit(limitNum)
+      .lean()
+      .exec(); // Use exec() for better performance
 
     const formattedMessages = messages.map((msg) => ({
       id: msg._id.toString(),

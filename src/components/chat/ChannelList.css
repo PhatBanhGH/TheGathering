@@ -214,7 +214,7 @@
 
 .channel-unread {
   margin-left: auto;
-  background: var(--accent-primary, #5865f2);
+  background: var(--accent-danger, #f04747);
   color: white;
   font-size: 11px;
   font-weight: 700;
@@ -222,13 +222,53 @@
   border-radius: 10px;
   min-width: 18px;
   text-align: center;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
 }
 
 .channel-unread-dot {
   margin-left: auto;
+  width: 8px;
+  height: 8px;
+  background: var(--accent-danger, #f04747);
+  border-radius: 50%;
+  flex-shrink: 0;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.channel-settings-btn {
+  margin-left: auto;
+  background: transparent;
+  border: none;
   color: var(--text-muted, #72767d);
-  font-size: 8px;
-  line-height: 1;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: var(--radius-sm, 4px);
+  opacity: 0;
+  transition: opacity var(--transition-base, 0.2s), color var(--transition-base, 0.2s);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.channel-item:hover .channel-settings-btn {
+  opacity: 1;
+}
+
+.channel-settings-btn:hover {
+  color: var(--text-primary, #dcddde);
+  background: var(--bg-hover, #3c3f44);
 }
 
 .voice-channel {
@@ -363,6 +403,26 @@
   background: #43b581;
   display: inline-block;
   flex-shrink: 0;
+}
+
+.user-status.voice-connected {
+  color: #5865f2;
+}
+
+.user-status.voice-connected::before {
+  display: none;
+}
+
+.voice-status-icon {
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.voice-status-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
 }
 
 .user-controls {

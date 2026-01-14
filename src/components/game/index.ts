@@ -9,4 +9,7 @@ export * from "./SocketHandlers";
 export * from "./SpeechBubble";
 export * from "./ZoneIndicator";
 export * from "./ReactionDisplay";
+export { default as GameScene } from "./GameScene";
+export { default as MapLayers } from "./MapLayers";
+export { default as ObjectInteraction } from "./ObjectInteraction";
 

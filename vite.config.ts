@@ -24,12 +24,66 @@ export default defineConfig({
     rollupOptions: {
       external: [],
       output: {
-        manualChunks: {
-          "vendor-react": ["react", "react-dom", "react-router-dom"],
-          "vendor-phaser": ["phaser"],
-          "vendor-socket": ["socket.io-client"],
-          "vendor-webrtc": ["simple-peer"],
+        manualChunks: (id) => {
+          // Vendor chunks
+          if (id.includes("node_modules")) {
+            if (id.includes("react") || id.includes("react-dom") || id.includes("react-router")) {
+              return "vendor-react";
+            }
+            if (id.includes("phaser")) {
+              return "vendor-phaser";
+            }
+            if (id.includes("socket.io-client")) {
+              return "vendor-socket";
+            }
+            if (id.includes("simple-peer")) {
+              return "vendor-webrtc";
+            }
+            // Other node_modules
+            return "vendor-other";
+          }
+          
+          // Page chunks for better code splitting
+          if (id.includes("/pages/")) {
+            if (id.includes("ChatPage")) {
+              return "page-chat";
+            }
+            if (id.includes("CalendarPage")) {
+              return "page-calendar";
+            }
+            if (id.includes("App.tsx")) {
+              return "page-app";
+            }
+          }
+          
+          // Component chunks
+          if (id.includes("/components/")) {
+            if (id.includes("GameScene") || id.includes("/game/")) {
+              return "chunk-game";
+            }
+            if (id.includes("/chat/")) {
+              return "chunk-chat";
+            }
+            if (id.includes("/modals/")) {
+              return "chunk-modals";
+            }
+          }
         },
+        // Optimize chunk names
+        chunkFileNames: (chunkInfo) => {
+          const facadeModuleId = chunkInfo.facadeModuleId
+            ? chunkInfo.facadeModuleId.split("/").pop()?.replace(".tsx", "").replace(".ts", "")
+            : "chunk";
+          return `assets/${facadeModuleId}-[hash].js`;
+        },
+      },
+    },
+    // Enable minification
+    minify: "terser",
+    terserOptions: {
+      compress: {
+        drop_console: false, // Keep console in dev, remove in production
+        drop_debugger: true,
       },
     },
   },

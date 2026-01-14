@@ -113,6 +113,7 @@
   flex: 1;
   display: flex;
   overflow: hidden;
+  position: relative;
 }
 
 /* Discord 4-column layout */
@@ -121,6 +122,34 @@
   width: 100%;
   height: 100%;
   overflow: hidden;
+}
+
+/* Chat main area - can be resized when voice channel is active */
+.chat-main-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  transition: margin-right 0.3s ease;
+}
+
+.chat-main-area.with-voice-channel {
+  margin-right: 400px; /* Space for voice channel overlay */
+}
+
+/* Voice channel overlay - floating on the right */
+.voice-channel-overlay {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 400px;
+  height: 100vh;
+  background: var(--bg-chat-area, #36393f);
+  border-left: 1px solid var(--border-color, #202225);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -4px 0 12px rgba(0, 0, 0, 0.2);
 }
 
 .chat-sidebar {

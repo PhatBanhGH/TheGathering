@@ -3,7 +3,7 @@ import Phaser from "phaser";
 import { useSocket } from "../contexts/SocketContext";
 import { useMap } from "../contexts/MapContext";
 import SimplifiedMap from "./ui/SimplifiedMap";
-import NotificationPanel from "./NotificationPanel";
+// NotificationPanel removed - using NotificationCenter in Sidebar instead
 import { useNotifications } from "../contexts/NotificationContext";
 import {
   AssetLoader,
@@ -142,7 +142,11 @@ const GameScene = () => {
         }
       }
 
+      private lastZoneCheck = 0;
+      private zoneCheckInterval = 500; // Check zone every 500ms instead of every frame
+
       update() {
+        // Camera zoom interpolation (lightweight, can run every frame)
         this.cameras.main.setZoom(
           Phaser.Math.Interpolation.Linear([this.cameras.main.zoom, this.targetZoom], 0.1)
         );
@@ -151,14 +155,14 @@ const GameScene = () => {
           isOverviewModeRef.current = isOverviewMode;
         }
 
-        // Update player position
+        // Update player position (critical, run every frame)
         this.playerController.updatePlayerPosition(
           this,
           socket,
           (animName) => this.playAnimation(animName)
         );
 
-        // Check interactions
+        // Check interactions (can be throttled, but keep responsive)
         this.playerController.checkInteractions(
           this,
           this.mapRenderer.getInteractiveObjects() || null,
@@ -172,16 +176,20 @@ const GameScene = () => {
           (animName) => this.playAnimation(animName)
         );
 
-        // Update NPCs
-        this.npcManager.updateNPCs();
+        // Update NPCs (throttled for performance)
+        this.npcManager.updateNPCs(this.time.now);
 
-        // Update zone indicator
-        this.zoneIndicator.updateIndicator(
-          this,
-          this.playerController.getPlayerPosition(),
-          mapData,
-          setCurrentZone
-        );
+        // Update zone indicator (throttle to reduce calculations)
+        const now = this.time.now;
+        if (now - this.lastZoneCheck >= this.zoneCheckInterval) {
+          this.zoneIndicator.updateIndicator(
+            this,
+            this.playerController.getPlayerPosition(),
+            mapData,
+            setCurrentZone
+          );
+          this.lastZoneCheck = now;
+        }
       }
 
       showSpeechBubble(userId: string, message: string) {

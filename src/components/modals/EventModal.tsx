@@ -89,6 +89,18 @@ const EventModal = ({ event, selectedDate, onClose }: EventModalProps) => {
     (a: any) => a.userId === currentUser?.userId
   )?.status;
 
+  // ESC to close modal
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleEsc);
+    return () => window.removeEventListener("keydown", handleEsc);
+  }, [onClose]);
+
   return (
     <div className="event-modal-overlay" onClick={onClose}>
       <div className="event-modal" onClick={(e) => e.stopPropagation()}>

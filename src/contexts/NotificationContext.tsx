@@ -9,24 +9,25 @@ import {
 import { useSocket } from "./SocketContext";
 
 export interface Notification {
-  id: string;
-  action?: { label: string; onClick: () => void };
-  type: "info" | "success" | "warning" | "error" | "event" | "message";
+  _id: string;
+  type: "message" | "friend_request" | "system";
   title: string;
   message: string;
-  timestamp: Date;
-  read: boolean;
-  actionUrl?: string;
+  link?: string;
+  relatedId?: string;
+  isRead: boolean;
+  readAt?: string;
+  createdAt: string;
 }
 
 interface NotificationContextType {
   notifications: Notification[];
   unreadCount: number;
-  addNotification: (notification: Omit<Notification, "id" | "timestamp" | "read">) => void;
-  markAsRead: (id: string) => void;
-  markAllAsRead: () => void;
-  clearNotification: (id: string) => void;
-  clearAll: () => void;
+  loading: boolean;
+  markAsRead: (notificationId: string) => Promise<void>;
+  markAllAsRead: () => Promise<void>;
+  deleteNotification: (notificationId: string) => Promise<void>;
+  refreshNotifications: () => Promise<void>;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(
@@ -36,160 +37,188 @@ const NotificationContext = createContext<NotificationContextType | undefined>(
 export const useNotifications = () => {
   const context = useContext(NotificationContext);
   if (!context) {
-    throw new Error("useNotifications must be used within NotificationProvider");
+    throw new Error(
+      "useNotifications must be used within NotificationProvider"
+    );
   }
   return context;
 };
 
-interface NotificationProviderProps {
-  children: ReactNode;
-}
-
-export const NotificationProvider = ({
-  children,
-}: NotificationProviderProps) => {
-  const { socket, currentUser } = useSocket();
+const NotificationProvider = ({ children }: { children: ReactNode }) => {
+  const { currentUser } = useSocket();
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [loading, setLoading] = useState(false);
 
-  const addNotification = useCallback(
-    (notification: Omit<Notification, "id" | "timestamp" | "read">) => {
-      const newNotification: Notification = {
-        ...notification,
-        id: `notif-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        timestamp: new Date(),
-        read: false,
-      };
+  const serverUrl = import.meta.env.VITE_SERVER_URL || "http://localhost:5001";
 
-      setNotifications((prev) => [newNotification, ...prev].slice(0, 50)); // Keep last 50
+  const fetchNotifications = useCallback(async () => {
+    if (!currentUser) {
+      setNotifications([]);
+      setUnreadCount(0);
+      return;
+    }
 
-      // Show browser notification if permission granted
-      if ("Notification" in window && Notification.permission === "granted") {
-        new Notification(notification.title, {
-          body: notification.message,
-          icon: "/favicon.ico",
-        });
+    const token = localStorage.getItem("token");
+    if (!token) {
+      // No token, skip fetching notifications
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch(`${serverUrl}/api/notifications?limit=50`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setNotifications(data.notifications || []);
+        setUnreadCount(data.unreadCount || 0);
+      } else if (response.status === 401) {
+        // Token expired or invalid, clear notifications
+        setNotifications([]);
+        setUnreadCount(0);
+        // Don't redirect here as it might be called frequently
+        // The user will be redirected when they try to perform an action
+      } else if (response.status === 429) {
+        // Rate limit exceeded - silently skip this poll, will retry next interval
+        const data = await response.json().catch(() => ({}));
+        const retryAfter = data.retryAfter || 60;
+        console.warn(
+          `Rate limit exceeded for notifications. Will retry in ${retryAfter} seconds.`
+        );
+        // Don't update state, just wait for next poll
+      }
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentUser, serverUrl]);
+
+  useEffect(() => {
+    fetchNotifications();
+
+    // Poll for new notifications every 30 seconds
+    const interval = setInterval(() => {
+      fetchNotifications();
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [fetchNotifications]);
+
+  const markAsRead = useCallback(
+    async (notificationId: string) => {
+      try {
+        const token = localStorage.getItem("token");
+        const response = await fetch(
+          `${serverUrl}/api/notifications/${notificationId}/read`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (response.ok) {
+          setNotifications((prev) =>
+            prev.map((n) =>
+              n._id === notificationId
+                ? { ...n, isRead: true, readAt: new Date().toISOString() }
+                : n
+            )
+          );
+          setUnreadCount((prev) => Math.max(0, prev - 1));
+        }
+      } catch (error) {
+        console.error("Error marking notification as read:", error);
       }
     },
-    []
+    [serverUrl]
   );
 
-  const markAsRead = useCallback((id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-    );
-  }, []);
+  const markAllAsRead = useCallback(async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`${serverUrl}/api/notifications/read-all`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-  const markAllAsRead = useCallback(() => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-  }, []);
-
-  const clearNotification = useCallback((id: string) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
-  }, []);
-
-  const clearAll = useCallback(() => {
-    setNotifications([]);
-  }, []);
-
-  const unreadCount = notifications.filter((n) => !n.read).length;
-
-  // Request notification permission on mount
-  useEffect(() => {
-    if ("Notification" in window && Notification.permission === "default") {
-      Notification.requestPermission();
+      if (response.ok) {
+        setNotifications((prev) =>
+          prev.map((n) => ({
+            ...n,
+            isRead: true,
+            readAt: new Date().toISOString(),
+          }))
+        );
+        setUnreadCount(0);
+      }
+    } catch (error) {
+      console.error("Error marking all notifications as read:", error);
     }
-  }, []);
+  }, [serverUrl]);
 
-  // Listen for socket events
-  useEffect(() => {
-    if (!socket) return;
+  const deleteNotification = useCallback(
+    async (notificationId: string) => {
+      try {
+        const token = localStorage.getItem("token");
+        const response = await fetch(
+          `${serverUrl}/api/notifications/${notificationId}`,
+          {
+            method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
 
-    const handleUserJoined = (data: any) => {
-      if (data.userId !== currentUser?.userId) {
-        addNotification({
-          type: "info",
-          title: "User Joined",
-          message: `${data.username} joined the room`,
-        });
-      }
-    };
-
-    const handleUserLeft = (data: any) => {
-      addNotification({
-        type: "info",
-        title: "User Left",
-        message: `${data.username} left the room`,
-      });
-    };
-
-    const handleEventCreated = (data: any) => {
-      addNotification({
-        type: "event",
-        title: "New Event",
-        message: `${data.title} - ${new Date(data.startTime).toLocaleString()}`,
-        actionUrl: `/events/${data.eventId}`,
-      });
-    };
-
-    // Listen for new messages in channels user is not viewing
-    const handleChatMessageForChannel = (data: any) => {
-      // Only notify if it's not from current user and not in current channel
-      if (data.userId !== currentUser?.userId) {
-        const currentChannel = localStorage.getItem("currentChannel");
-        if (data.channelId && data.channelId !== currentChannel) {
-          addNotification({
-            type: "message",
-            title: `New message in #${data.channelId}`,
-            message: `${data.username}: ${data.message?.substring(0, 50)}${data.message?.length > 50 ? "..." : ""}`,
-            actionUrl: `/app/chat?channel=${data.channelId}`,
-          });
+        if (response.ok) {
+          const notification = notifications.find(
+            (n) => n._id === notificationId
+          );
+          setNotifications((prev) =>
+            prev.filter((n) => n._id !== notificationId)
+          );
+          if (notification && !notification.isRead) {
+            setUnreadCount((prev) => Math.max(0, prev - 1));
+          }
         }
+      } catch (error) {
+        console.error("Error deleting notification:", error);
       }
-    };
+    },
+    [notifications, serverUrl]
+  );
 
-    // Listen for mentions
-    const handleChatMessageForMention = (data: any) => {
-      if (data.userId !== currentUser?.userId && data.message) {
-        const mentionRegex = new RegExp(`@${currentUser?.username}`, "i");
-        if (mentionRegex.test(data.message)) {
-          addNotification({
-            type: "message",
-            title: "You were mentioned",
-            message: `${data.username} mentioned you: ${data.message.substring(0, 50)}`,
-            actionUrl: `/app/chat?channel=${data.channelId || "general"}`,
-          });
-        }
-      }
-    };
-
-    socket.on("user-joined", handleUserJoined);
-    socket.on("user-left", handleUserLeft);
-    socket.on("event-created", handleEventCreated);
-    socket.on("chat-message", handleChatMessageForChannel);
-    socket.on("chat-message", handleChatMessageForMention);
-
-    return () => {
-      socket.off("user-joined", handleUserJoined);
-      socket.off("user-left", handleUserLeft);
-      socket.off("event-created", handleEventCreated);
-      socket.off("chat-message", handleChatMessageForChannel);
-      socket.off("chat-message", handleChatMessageForMention);
-    };
-  }, [socket, currentUser, addNotification]);
+  const refreshNotifications = useCallback(() => {
+    return fetchNotifications();
+  }, [fetchNotifications]);
 
   return (
     <NotificationContext.Provider
       value={{
         notifications,
         unreadCount,
-        addNotification,
+        loading,
         markAsRead,
         markAllAsRead,
-        clearNotification,
-        clearAll,
+        deleteNotification,
+        refreshNotifications,
       }}
     >
       {children}
     </NotificationContext.Provider>
   );
 };
+
+NotificationProvider.displayName = "NotificationProvider";
+
+export { NotificationProvider };

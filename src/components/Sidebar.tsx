@@ -2,8 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useSocket } from "../contexts/SocketContext";
 import { InviteModal } from "./modals";
-import NotificationPanel from "./NotificationPanel";
-import { useNotifications } from "../contexts/NotificationContext";
+import NotificationCenter from "./NotificationCenter";
 import "./Sidebar.css";
 
 const Sidebar = () => {
@@ -15,12 +14,11 @@ const Sidebar = () => {
   // Xác định tab active dựa trên route hiện tại
   const getActiveTab = () => {
     if (location.pathname === "/app/chat") return "chat";
-    if (location.pathname === "/app/calendar") return "calendar";
     if (location.pathname.includes("/app")) return "users";
     return "users";
   };
 
-  const [activeTab, setActiveTab] = useState<"users" | "calendar" | "chat">(getActiveTab());
+  const [activeTab, setActiveTab] = useState<"users" | "chat">(getActiveTab());
 
   // Đồng bộ activeTab khi location thay đổi
   useEffect(() => {
@@ -28,60 +26,60 @@ const Sidebar = () => {
   }, [location.pathname]);
 
   // Gộp danh sách user giống panel chat: 1 bản duy nhất theo username, ưu tiên online
-  const { onlineUsers, offlineUsers, filteredOnlineUsers, filteredOfflineUsers } =
-    (() => {
-      const byUsername = new Map<
-        string,
-        (typeof users)[0] | typeof currentUser | null | undefined
-      >();
+  const {
+    onlineUsers,
+    offlineUsers,
+    filteredOnlineUsers,
+    filteredOfflineUsers,
+  } = (() => {
+    const byUsername = new Map<
+      string,
+      (typeof users)[0] | typeof currentUser | null | undefined
+    >();
 
-      users.forEach((u) => {
-        if (!u) return;
-        const existing = byUsername.get(u.username);
-        const status = (u as any).status || "online";
-        const existingStatus = (existing as any)?.status || "offline";
-        if (!existing || (existingStatus === "offline" && status === "online")) {
-          byUsername.set(u.username, u);
-        }
-      });
-
-      if (currentUser) {
-        const existing = byUsername.get(currentUser.username);
-        const existingStatus = (existing as any)?.status || "offline";
-        if (!existing || existingStatus === "offline") {
-          byUsername.set(currentUser.username, {
-            ...currentUser,
-            status: "online" as const,
-          });
-        }
+    users.forEach((u) => {
+      if (!u) return;
+      const existing = byUsername.get(u.username);
+      const status = (u as any).status || "online";
+      const existingStatus = (existing as any)?.status || "offline";
+      if (!existing || (existingStatus === "offline" && status === "online")) {
+        byUsername.set(u.username, u);
       }
+    });
 
-      const merged = Array.from(byUsername.values()).filter(
-        (u): u is NonNullable<typeof u> => !!u
-      );
+    if (currentUser) {
+      const existing = byUsername.get(currentUser.username);
+      const existingStatus = (existing as any)?.status || "offline";
+      if (!existing || existingStatus === "offline") {
+        byUsername.set(currentUser.username, {
+          ...currentUser,
+          status: "online" as const,
+        });
+      }
+    }
 
-      const online = merged.filter(
-        (u) => (u as any).status !== "offline"
-      );
-      const offline = merged.filter((u) => (u as any).status === "offline");
+    const merged = Array.from(byUsername.values()).filter(
+      (u): u is NonNullable<typeof u> => !!u
+    );
 
-      const filteredOnline = online.filter((u) =>
-        u.username.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-      const filteredOffline = offline.filter((u) =>
-        u.username.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+    const online = merged.filter((u) => (u as any).status !== "offline");
+    const offline = merged.filter((u) => (u as any).status === "offline");
 
-      return {
-        onlineUsers: online,
-        offlineUsers: offline,
-        filteredOnlineUsers: filteredOnline,
-        filteredOfflineUsers: filteredOffline,
-      };
-    })();
+    const filteredOnline = online.filter((u) =>
+      u.username.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+    const filteredOffline = offline.filter((u) =>
+      u.username.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    return {
+      onlineUsers: online,
+      offlineUsers: offline,
+      filteredOnlineUsers: filteredOnline,
+      filteredOfflineUsers: filteredOffline,
+    };
+  })();
   const [showInviteModal, setShowInviteModal] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const { unreadCount } = useNotifications();
   const roomId = localStorage.getItem("roomId") || "default-room";
 
   const handleExit = () => {
@@ -98,12 +96,10 @@ const Sidebar = () => {
     navigate("/spaces");
   };
 
-  const handleTabClick = (tab: "users" | "calendar" | "chat") => {
+  const handleTabClick = (tab: "users" | "chat") => {
     setActiveTab(tab);
     if (tab === "chat") {
       navigate("/app/chat");
-    } else if (tab === "calendar") {
-      navigate("/app/calendar");
     } else {
       navigate("/app");
     }
@@ -123,13 +119,6 @@ const Sidebar = () => {
           🗺️
         </button>
         <button
-          className={`nav-icon-btn ${activeTab === "calendar" ? "active" : ""}`}
-          onClick={() => handleTabClick("calendar")}
-          title="Calendar"
-        >
-          📅
-        </button>
-        <button
           className={`nav-icon-btn ${activeTab === "chat" ? "active" : ""}`}
           onClick={() => handleTabClick("chat")}
           title="Chat"
@@ -138,26 +127,24 @@ const Sidebar = () => {
         </button>
       </div>
 
+      {/* Notification Center */}
+      <div className="sidebar-notifications">
+        <NotificationCenter />
+      </div>
+
       {/* Main Sidebar Panel - Only show for Users tab */}
       {activeTab === "users" && (
         <div className="sidebar-main">
           <div className="sidebar-header">
             <h2>{projectName}</h2>
-            <button
-              className="notification-btn-sidebar"
-              onClick={() => setShowNotifications(true)}
-              title="Notifications"
-            >
-              🔔
-              {unreadCount > 0 && (
-                <span className="notification-badge">{unreadCount}</span>
-              )}
-            </button>
+            <NotificationCenter />
           </div>
 
           <div className="sidebar-section">
             <h3>Experience Gather together</h3>
-            <p className="section-subtitle">Invite your closest collaborators.</p>
+            <p className="section-subtitle">
+              Invite your closest collaborators.
+            </p>
             <button
               className="invite-button"
               onClick={() => setShowInviteModal(true)}
@@ -245,8 +232,12 @@ const Sidebar = () => {
 
           <div className="sidebar-footer">
             <div className="connection-status">
-              <div className={`status-indicator ${isConnected ? 'connected' : 'disconnected'}`} />
-              <span>{isConnected ? 'Connected' : 'Disconnected'}</span>
+              <div
+                className={`status-indicator ${
+                  isConnected ? "connected" : "disconnected"
+                }`}
+              />
+              <span>{isConnected ? "Connected" : "Disconnected"}</span>
             </div>
             <button className="exit-button" onClick={handleExit}>
               Thoát
@@ -260,13 +251,8 @@ const Sidebar = () => {
         onClose={() => setShowInviteModal(false)}
         roomId={roomId}
       />
-      <NotificationPanel
-        isOpen={showNotifications}
-        onClose={() => setShowNotifications(false)}
-      />
     </div>
   );
 };
 
 export default Sidebar;
-

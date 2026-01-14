@@ -57,11 +57,16 @@ export const MapProvider = ({ children }: MapProviderProps) => {
       const response = await fetch(
         `${
           import.meta.env.VITE_SERVER_URL || "http://localhost:5001"
-        }/api/maps/room/${currentUser.roomId}`
+        }/api/world/room/${currentUser.roomId}`
       );
       if (response.ok) {
         const data = await response.json();
         setMapData(data);
+      } else if (response.status === 404) {
+        // Room might not have map yet, set null
+        setMapData(null);
+      } else {
+        console.error("Failed to fetch map:", response.status);
       }
     } catch (error) {
       console.error("Error fetching map:", error);

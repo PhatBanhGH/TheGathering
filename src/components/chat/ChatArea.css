@@ -17,6 +17,7 @@
   position: sticky;
   top: 0;
   z-index: 10;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.1);
 }
 
 .chat-area-title {
@@ -26,11 +27,20 @@
   font-size: 16px;
   font-weight: 600;
   color: var(--text-primary, #dcddde);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.chat-area-title:hover {
+  background: var(--bg-hover, #3c3f44);
 }
 
 .channel-type-icon {
   color: var(--text-muted, #72767d);
   font-weight: 400;
+  font-size: 20px;
 }
 
 .channel-name {
@@ -47,10 +57,10 @@
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 16px;
+  font-size: 18px;
   padding: 4px;
   color: var(--text-secondary, #96989d);
-  transition: color 0.2s;
+  transition: all 0.2s;
   width: 32px;
   height: 32px;
   display: flex;
@@ -62,6 +72,32 @@
 .header-icon-btn:hover {
   color: var(--text-primary, #dcddde);
   background: var(--bg-hover, #3c3f44);
+}
+
+.header-search {
+  position: relative;
+  margin: 0 8px;
+}
+
+.header-search-input {
+  width: 144px;
+  padding: 4px 8px;
+  background: var(--bg-input, #202225);
+  border: none;
+  border-radius: 4px;
+  color: var(--text-primary, #dcddde);
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.header-search-input:focus {
+  outline: none;
+  width: 240px;
+  background: var(--bg-input-focus, #1e1f22);
+}
+
+.header-search-input::placeholder {
+  color: var(--text-muted, #72767d);
 }
 
 .chat-messages-wrapper {
@@ -91,11 +127,85 @@
 
 .chat-empty-state {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   height: 100%;
+  padding: 3rem 2rem;
+  text-align: center;
   color: var(--text-muted, #72767d);
-  font-size: 14px;
+}
+
+.empty-state-icon {
+  font-size: 5rem;
+  margin-bottom: 1.5rem;
+  opacity: 0.8;
+  animation: float 3s ease-in-out infinite;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.empty-state-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary, #dcddde);
+  margin: 0 0 0.75rem 0;
+}
+
+.empty-state-description {
+  font-size: 1rem;
+  color: var(--text-muted, #72767d);
+  margin: 0 0 1.5rem 0;
+  max-width: 500px;
+  line-height: 1.5;
+}
+
+.empty-state-link {
+  color: var(--accent-primary, #5865f2);
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.empty-state-link:hover {
+  color: var(--accent-hover, #4752c4);
+  text-decoration: underline;
+}
+
+.empty-state-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.empty-state-btn {
+  padding: 0.625rem 1.25rem;
+  background: var(--bg-button-primary, #5865f2);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.1s;
+}
+
+.empty-state-btn:hover {
+  background: var(--bg-button-primary-hover, #4752c4);
+  transform: translateY(-1px);
+}
+
+.empty-state-btn:active {
+  transform: translateY(0);
 }
 
 .chat-messages-list {

@@ -258,23 +258,8 @@ const ChatPage = () => {
           } : undefined}
         />
 
-        {/* Chat Area or Voice Channel View */}
-        {currentVoiceChannel ? (
-          <VoiceChannelView
-            channelId={currentVoiceChannel}
-            channelName={
-              voiceChannels.find((vc) => vc.id === currentVoiceChannel)?.name ||
-              "Voice Channel"
-            }
-            onLeave={() => {
-              leaveVoiceChannel();
-              setSelectedChannel("general");
-              setActiveTab("global");
-              // Clear voice channel users in WebRTC context
-              // This is handled by VoiceChannelView useEffect cleanup
-            }}
-          />
-        ) : (
+        {/* Chat Area - Always visible, can be used while in voice channel */}
+        <div className={`chat-main-area ${currentVoiceChannel ? "with-voice-channel" : ""}`}>
           <ChatArea
             channelName={
               activeTab === "dm" && currentDMUser
@@ -315,6 +300,24 @@ const ChatPage = () => {
                 : `Nhắn #${selectedChannel || "general"}`
             }
           />
+        </div>
+
+        {/* Voice Channel View - Floating overlay when active */}
+        {currentVoiceChannel && (
+          <div className="voice-channel-overlay">
+            <VoiceChannelView
+              channelId={currentVoiceChannel}
+              channelName={
+                voiceChannels.find((vc) => vc.id === currentVoiceChannel)?.name ||
+                "Voice Channel"
+              }
+              onLeave={() => {
+                leaveVoiceChannel();
+                setSelectedChannel("general");
+                setActiveTab("global");
+              }}
+            />
+          </div>
         )}
 
         {/* User List */}
@@ -339,8 +342,8 @@ const ChatPage = () => {
       <CreateChannelModal
         isOpen={showCreateChannelModal}
         onClose={() => setShowCreateChannelModal(false)}
-        onCreateChannel={(name: string, type: "text" | "voice", description?: string) => {
-          createChannel(name, type, description);
+        onCreateChannel={(name: string, type: "text" | "voice", description?: string, isPrivate?: boolean) => {
+          createChannel(name, type, description, isPrivate);
           setShowCreateChannelModal(false);
         }}
         defaultType={createChannelType}

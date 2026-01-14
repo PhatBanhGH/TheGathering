@@ -120,5 +120,14 @@ const messageSchema = new Schema<IMessage>(
   }
 );
 
+// Indexes for performance optimization
+messageSchema.index({ roomId: 1, timestamp: -1 }); // For room messages queries
+messageSchema.index({ channelId: 1, timestamp: -1 }); // For channel messages
+messageSchema.index({ senderId: 1, timestamp: -1 }); // For user messages
+messageSchema.index({ type: 1, timestamp: -1 }); // For message type queries
+messageSchema.index({ groupId: 1, timestamp: -1 }); // For group messages
+messageSchema.index({ targetUserId: 1, timestamp: -1 }); // For DM queries
+messageSchema.index({ timestamp: -1 }); // General timestamp queries
+
 export default mongoose.model<IMessage>("Message", messageSchema);
 

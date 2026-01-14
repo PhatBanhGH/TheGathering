@@ -6,7 +6,8 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import "./index.css";
-import { preventDoubleTapZoom } from "./utils/mobile";
+import "./styles/discord-tokens.css"; // Discord-like design tokens
+import { preventDoubleTapZoom } from "./utils/helpers";
 
 // Prevent double tap zoom on mobile
 preventDoubleTapZoom();
@@ -33,7 +34,7 @@ createRoot(document.getElementById("root")!).render(
         <Route path="/lobby" element={<Lobby />} />
         <Route path="/app" element={<AppPage />} />
         <Route path="/app/chat" element={<AppPage />} />
-        <Route path="/app/calendar" element={<AppPage />} />
+        <Route path="/app/profile/:userId" element={<AppPage />} />
       </Routes>
     </BrowserRouter>
   </StrictMode>

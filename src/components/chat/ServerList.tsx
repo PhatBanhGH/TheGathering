@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNotifications } from "../../contexts/NotificationContext";
 import "./ServerList.css";
 
 interface Server {
@@ -23,6 +24,7 @@ const ServerList = ({
   onAddServer 
 }: ServerListProps) => {
   const [hoveredServerId, setHoveredServerId] = useState<string | null>(null);
+  const { unreadCount } = useNotifications();
 
   // Default server if none provided
   const defaultServer: Server = {
@@ -30,9 +32,15 @@ const ServerList = ({
     name: "My Virtual Office",
     icon: "🏠",
     isOnline: true,
+    unreadCount: unreadCount > 0 ? unreadCount : undefined,
   };
 
-  const displayServers = servers.length > 0 ? servers : [defaultServer];
+  const displayServers = servers.length > 0 
+    ? servers.map(server => ({
+        ...server,
+        unreadCount: server.unreadCount || (server.id === currentServerId && unreadCount > 0 ? unreadCount : undefined),
+      }))
+    : [defaultServer];
 
   return (
     <div className="server-list">
@@ -53,7 +61,12 @@ const ServerList = ({
               {server.icon || server.name.charAt(0).toUpperCase()}
             </div>
             {server.unreadCount && server.unreadCount > 0 && (
-              <div className="server-unread-badge">{server.unreadCount}</div>
+              <div 
+                className="server-unread-badge" 
+                data-count={server.unreadCount <= 9 ? server.unreadCount.toString() : undefined}
+              >
+                {server.unreadCount > 99 ? "99+" : server.unreadCount}
+              </div>
             )}
             {server.isOnline && !isActive && (
               <div className="server-online-indicator" />

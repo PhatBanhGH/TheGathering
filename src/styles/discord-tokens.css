@@ -1,0 +1,94 @@
+/**
+ * Discord-like Design Tokens
+ * Centralized CSS variables for consistent theming
+ */
+
+:root {
+  /* Background Colors */
+  --bg-primary: #36393f;
+  --bg-secondary: #2f3136;
+  --bg-tertiary: #202225;
+  --bg-input: #40444b;
+  --bg-hover: #3c3f44;
+  --bg-active: #393c43;
+  --bg-modal: #1f2937;
+  --bg-modal-overlay: rgba(0, 0, 0, 0.7);
+  
+  /* Text Colors */
+  --text-primary: #dcddde;
+  --text-secondary: #b9bbbe;
+  --text-muted: #72767d;
+  --text-link: #00aff4;
+  --text-link-hover: #0096d6;
+  
+  /* Accent Colors */
+  --accent-primary: #5865f2;
+  --accent-primary-hover: #4752c4;
+  --accent-success: #43b581;
+  --accent-warning: #faa61a;
+  --accent-danger: #ed4245;
+  --accent-danger-hover: #c03537;
+  
+  /* Border Colors */
+  --border-color: #202225;
+  --border-color-light: #40444b;
+  
+  /* Status Colors */
+  --status-online: #43b581;
+  --status-away: #faa61a;
+  --status-busy: #ed4245;
+  --status-offline: #747f8d;
+  
+  /* Spacing */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 24px;
+  --spacing-2xl: 32px;
+  
+  /* Border Radius */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-full: 9999px;
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+  --shadow-modal: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+  
+  /* Transitions */
+  --transition-fast: 0.15s ease;
+  --transition-base: 0.2s ease;
+  --transition-slow: 0.3s ease;
+  
+  /* Z-index */
+  --z-dropdown: 1000;
+  --z-modal: 10000;
+  --z-tooltip: 10001;
+}
+
+/* Light theme (optional, for future use) */
+[data-theme="light"] {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f2f3f5;
+  --bg-tertiary: #e3e5e8;
+  --bg-input: #e3e5e8;
+  --bg-hover: #e3e5e8;
+  --bg-active: #d4d7dc;
+  --bg-modal: #ffffff;
+  --bg-modal-overlay: rgba(0, 0, 0, 0.5);
+  
+  --text-primary: #060607;
+  --text-secondary: #4f5660;
+  --text-muted: #747f8d;
+  --text-link: #00aff4;
+  --text-link-hover: #0096d6;
+  
+  --border-color: #e3e5e8;
+  --border-color-light: #d4d7dc;
+}

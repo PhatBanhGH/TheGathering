@@ -17,6 +17,7 @@ interface VoiceUser {
   isVideoEnabled: boolean;
   isAudioEnabled: boolean;
   stream?: MediaStream;
+  isSpeaking?: boolean; // NEW: For speaking indicator
 }
 
 // ==========================================
@@ -219,6 +220,9 @@ const VoiceChannelView = ({
     const mappedUsers: VoiceUser[] = channelUsers.map((userId) => {
       // a. Xử lý chính mình
       if (userId === currentUser.userId) {
+        // Mock speaking state for current user
+        const isSpeaking = Math.random() > 0.7; // Fake: 30% chance of speaking
+        
         return {
           userId: currentUser.userId,
           username: currentUser.username,
@@ -226,6 +230,7 @@ const VoiceChannelView = ({
           isVideoEnabled: isVideoEnabled, // State local
           isAudioEnabled: isAudioEnabled, // State local
           stream: localStream || undefined,
+          isSpeaking: isSpeaking, // Mock speaking indicator
         };
       }
 
@@ -267,6 +272,9 @@ const VoiceChannelView = ({
         });
       }
 
+      // Mock speaking state (in real app, use audio level detection)
+      const isSpeaking = Math.random() > 0.7; // Fake: 30% chance of speaking
+      
       return {
         userId: userId,
         username: user.username,
@@ -276,6 +284,7 @@ const VoiceChannelView = ({
         isVideoEnabled: !!videoTrack && videoTrack.enabled,
         isAudioEnabled: audioTrack?.enabled ?? false,
         stream: remoteStream,
+        isSpeaking: isSpeaking, // Mock speaking indicator
       };
     });
 
@@ -336,7 +345,7 @@ const VoiceChannelView = ({
               key={user.userId}
               className={`voice-user-card ${
                 isCurrentUser ? "current-user" : ""
-              }`}
+              } ${user.isSpeaking ? "speaking" : ""}`}
             >
               <div className="voice-user-video-container">
                 {/* Luôn render video element nếu có stream, để video có thể hiển thị ngay khi track enabled */}

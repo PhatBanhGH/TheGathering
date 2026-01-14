@@ -1,7 +1,14 @@
 import { useState } from "react";
 import { useChat } from "../../contexts/ChatContext";
 import { useWebRTC } from "../../contexts/WebRTCContext";
+import { useNotifications } from "../../contexts/NotificationContext";
 import "./ChannelList.css";
+
+// Hook for hover state per channel
+const useChannelHover = () => {
+  const [hoveredChannelId, setHoveredChannelId] = useState<string | null>(null);
+  return { hoveredChannelId, setHoveredChannelId };
+};
 
 export interface Channel {
   id: string;
@@ -58,10 +65,12 @@ const ChannelList = ({
     toggleVideo,
     toggleAudio,
   } = useWebRTC();
+  const { unreadCount } = useNotifications();
   const [searchQuery, setSearchQuery] = useState("");
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(
     new Set()
   );
+  const [hoveredChannelId, setHoveredChannelId] = useState<string | null>(null);
 
   const toggleSection = (section: string) => {
     setCollapsedSections((prev) => {
@@ -256,7 +265,16 @@ const ChannelList = ({
             </div>
             <div className="user-info">
               <div className="user-name">{currentUser.username}</div>
-              <div className="user-status">Online</div>
+              {currentVoiceChannelId ? (
+                <div className="user-status voice-connected">
+                  <span className="voice-status-icon">🔊</span>
+                  <span className="voice-status-text">
+                    {voiceChannels.find((vc) => vc.id === currentVoiceChannelId)?.name || "Voice Channel"}
+                  </span>
+                </div>
+              ) : (
+                <div className="user-status">Online</div>
+              )}
             </div>
           </div>
 

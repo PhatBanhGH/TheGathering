@@ -49,8 +49,11 @@ const roomMemberSchema = new Schema<IRoomMember>(
   }
 );
 
-// Compound index to ensure unique user per room
-roomMemberSchema.index({ roomId: 1, userId: 1 }, { unique: true });
+// Indexes for performance optimization
+roomMemberSchema.index({ roomId: 1, userId: 1 }, { unique: true }); // Compound unique index
+roomMemberSchema.index({ userId: 1 }); // For user's rooms queries
+roomMemberSchema.index({ roomId: 1, isOnline: 1 }); // For online users in room
+roomMemberSchema.index({ isOnline: 1, lastSeen: -1 }); // For active users queries
 
 export default mongoose.model<IRoomMember>("RoomMember", roomMemberSchema);
 

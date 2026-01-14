@@ -41,6 +41,7 @@ interface ChatAreaProps {
   onEdit?: (messageId: string, newContent: string) => void;
   onDelete?: (messageId: string) => void;
   inputPlaceholder?: string;
+  typingUsers?: string[]; // NEW: List of usernames currently typing
 }
 
 const ChatArea = ({
@@ -54,6 +55,7 @@ const ChatArea = ({
   onEdit,
   onDelete,
   inputPlaceholder,
+  typingUsers = [], // NEW: Default to empty array
 }: ChatAreaProps) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [inputValue, setInputValue] = useState("");
@@ -182,13 +184,55 @@ const ChatArea = ({
 
   return (
     <div className="chat-area">
-      {/* Header removed */}
+      {/* Discord-style Header */}
+      <div className="chat-area-header">
+        <div className="chat-area-title">
+          <span className="channel-type-icon">#</span>
+          <span className="channel-name">{channelName}</span>
+        </div>
+        <div className="chat-area-actions">
+          <button className="header-icon-btn" title="Thông báo" onClick={() => setShowSearch(true)}>
+            🔔
+          </button>
+          <button className="header-icon-btn" title="Ghim" onClick={() => setShowSearch(true)}>
+            📌
+          </button>
+          <button className="header-icon-btn" title="Thành viên" onClick={() => setShowSearch(true)}>
+            👥
+          </button>
+          <div className="header-search">
+            <input
+              type="text"
+              placeholder={`Tìm kiếm ${channelName}`}
+              className="header-search-input"
+              onFocus={() => setShowSearch(true)}
+            />
+          </div>
+          <button className="header-icon-btn" title="Trợ giúp">
+            ?
+          </button>
+        </div>
+      </div>
 
       {/* Messages */}
       <div className="chat-messages-wrapper">
         {messages.length === 0 ? (
           <div className="chat-empty-state">
-            <p>Chưa có tin nhắn nào. Bắt đầu cuộc trò chuyện!</p>
+            <div className="empty-state-icon">💬</div>
+            <h3 className="empty-state-title">Chưa có tin nhắn nào</h3>
+            <p className="empty-state-description">Bắt đầu cuộc trò chuyện bằng cách gửi tin nhắn đầu tiên!</p>
+            <div className="empty-state-actions">
+              <button 
+                className="empty-state-btn"
+                onClick={() => {
+                  // Focus vào input
+                  const input = document.querySelector('.chat-input input') as HTMLInputElement;
+                  input?.focus();
+                }}
+              >
+                Gửi tin nhắn đầu tiên
+              </button>
+            </div>
           </div>
         ) : (
           <div className="chat-messages-list">
@@ -222,6 +266,17 @@ const ChatArea = ({
                 />
               );
             })}
+            {/* Typing indicator */}
+            {typingUsers.length > 0 && (
+              <div className="typing-indicator">
+                <span>{typingUsers.length === 1 ? `${typingUsers[0]} đang gõ...` : `${typingUsers.length} người đang gõ...`}</span>
+                <div className="typing-indicator-dots">
+                  <div className="typing-dot"></div>
+                  <div className="typing-dot"></div>
+                  <div className="typing-dot"></div>
+                </div>
+              </div>
+            )}
             <div ref={messagesEndRef} />
           </div>
         )}

@@ -1,92 +1,140 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { useNotifications } from "../contexts/NotificationContext";
+import { formatRelativeTime } from "../utils/date";
 import "./NotificationCenter.css";
 
 const NotificationCenter = () => {
-  const { notifications, markAsRead, clearAll, unreadCount } = useNotifications();
+  const {
+    notifications,
+    unreadCount,
+    markAsRead,
+    markAllAsRead,
+    deleteNotification,
+  } = useNotifications();
   const [isOpen, setIsOpen] = useState(false);
+  const navigate = useNavigate();
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const unreadNotifications = notifications.filter((n) => !n.read);
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isOpen]);
+
+  const handleNotificationClick = async (notification: any) => {
+    if (!notification.isRead) {
+      await markAsRead(notification._id);
+    }
+
+    if (notification.link) {
+      navigate(notification.link);
+      setIsOpen(false);
+    }
+  };
+
+  const getNotificationIcon = (type: string) => {
+    switch (type) {
+      case "event_reminder":
+      case "event_invite":
+        return "📅";
+      case "forum_mention":
+      case "forum_reply":
+      case "forum_like":
+        return "💬";
+      case "message":
+        return "✉️";
+      case "friend_request":
+        return "👤";
+      case "system":
+        return "🔔";
+      default:
+        return "🔔";
+    }
+  };
 
   return (
-    <>
+    <div className="notification-center" ref={dropdownRef}>
       <button
-        className="notification-bell"
+        className="notification-button"
         onClick={() => setIsOpen(!isOpen)}
         title="Notifications"
       >
         🔔
         {unreadCount > 0 && (
-          <span className="notification-badge">{unreadCount}</span>
+          <span className="notification-badge">{unreadCount > 9 ? "9+" : unreadCount}</span>
         )}
       </button>
 
       {isOpen && (
-        <div className="notification-center">
+        <div className="notification-dropdown">
           <div className="notification-header">
             <h3>Notifications</h3>
-            <div className="notification-actions">
-              {unreadNotifications.length > 0 && (
-                <button onClick={clearAll} className="btn-clear">
-                  Clear All
-                </button>
-              )}
-              <button onClick={() => setIsOpen(false)} className="btn-close">
-                ×
+            {unreadCount > 0 && (
+              <button
+                className="mark-all-read-btn"
+                onClick={markAllAsRead}
+                title="Mark all as read"
+              >
+                Mark all read
               </button>
-            </div>
+            )}
           </div>
 
           <div className="notification-list">
             {notifications.length === 0 ? (
-              <div className="no-notifications">No notifications</div>
+              <div className="notification-empty">
+                <p>No notifications</p>
+              </div>
             ) : (
               notifications.map((notification) => (
                 <div
-                  key={notification.id}
-                  className={`notification-item ${notification.type} ${
-                    notification.read ? "read" : ""
-                  }`}
-                  onClick={() => markAsRead(notification.id)}
+                  key={notification._id}
+                  className={`notification-item ${!notification.isRead ? "unread" : ""}`}
+                  onClick={() => handleNotificationClick(notification)}
                 >
                   <div className="notification-icon">
-                    {notification.type === "info" && "ℹ️"}
-                    {notification.type === "success" && "✅"}
-                    {notification.type === "warning" && "⚠️"}
-                    {notification.type === "error" && "❌"}
+                    {getNotificationIcon(notification.type)}
                   </div>
                   <div className="notification-content">
                     <div className="notification-title">{notification.title}</div>
-                    <div className="notification-message">
-                      {notification.message}
-                    </div>
+                    <div className="notification-message">{notification.message}</div>
                     <div className="notification-time">
-                      {new Date(notification.timestamp).toLocaleTimeString()}
+                      {formatRelativeTime(notification.createdAt)}
                     </div>
-                    {notification.action && (
-                      <button
-                        className="notification-action"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          notification.action?.onClick();
-                        }}
-                      >
-                        {notification.action.label}
-                      </button>
-                    )}
                   </div>
-                  {!notification.read && (
-                    <div className="notification-unread-indicator" />
-                  )}
+                  <button
+                    className="notification-delete"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteNotification(notification._id);
+                    }}
+                    title="Delete"
+                  >
+                    ✕
+                  </button>
                 </div>
               ))
             )}
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 };
 
 export default NotificationCenter;
-

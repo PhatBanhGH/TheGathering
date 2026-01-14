@@ -58,10 +58,40 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   padding: 0 6px;
   border: 2px solid var(--bg-server-list, #202225);
+  z-index: 10;
+  animation: pulse-badge 2s ease-in-out infinite;
+  box-shadow: 0 2px 4px rgba(240, 71, 71, 0.3);
+}
+
+@keyframes pulse-badge {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.9;
+  }
+}
+
+/* Smaller badge for single digit (1-9) */
+.server-unread-badge[data-count="1"],
+.server-unread-badge[data-count="2"],
+.server-unread-badge[data-count="3"],
+.server-unread-badge[data-count="4"],
+.server-unread-badge[data-count="5"],
+.server-unread-badge[data-count="6"],
+.server-unread-badge[data-count="7"],
+.server-unread-badge[data-count="8"],
+.server-unread-badge[data-count="9"] {
+  min-width: 18px;
+  height: 18px;
+  font-size: 10px;
+  padding: 0 4px;
 }
 
 .server-online-indicator {

@@ -29,7 +29,18 @@ export const useChatMessages = ({
           }/api/chat/history/${roomId}?type=global&limit=100`
         );
         if (response.ok) {
-          const historyMessages: ChatMessage[] = await response.json();
+          const data = await response.json();
+          // Handle both old format (array) and new format (object with messages property)
+          const historyMessages: ChatMessage[] = Array.isArray(data) 
+            ? data 
+            : (data.messages || []);
+          
+          // Ensure it's an array
+          if (!Array.isArray(historyMessages)) {
+            console.warn("Invalid message history format, expected array");
+            return;
+          }
+          
           console.log("Loaded messages from database:", historyMessages.length);
           setMessages((prev) => {
             const existingIds = new Set(prev.map((m) => m.id));

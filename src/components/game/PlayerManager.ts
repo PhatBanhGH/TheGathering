@@ -106,22 +106,27 @@ export class PlayerManager {
     position: { x: number; y: number },
     direction?: string
   ): void {
-    // Smooth position interpolation
+    // Smooth position interpolation - only tween if distance is significant
     const currentX = container.x;
     const currentY = container.y;
     const targetX = position.x;
     const targetY = position.y;
+    const distance = Phaser.Math.Distance.Between(currentX, currentY, targetX, targetY);
 
-    // Use Phaser's tween for smooth movement
-    if (Math.abs(currentX - targetX) > 1 || Math.abs(currentY - targetY) > 1) {
+    // Only use tween for larger movements to improve performance
+    // For small movements, directly set position
+    if (distance > 10) {
+      // Kill any existing tween on this container to prevent conflicts
+      scene.tweens.killTweensOf(container);
       scene.tweens.add({
         targets: container,
         x: targetX,
         y: targetY,
-        duration: 100,
+        duration: 150, // Slightly longer for smoother interpolation
         ease: 'Linear'
       });
-    } else {
+    } else if (distance > 1) {
+      // Small movements: direct position update (no tween for better performance)
       container.setPosition(targetX, targetY);
     }
 

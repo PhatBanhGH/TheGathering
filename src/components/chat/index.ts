@@ -6,4 +6,7 @@ export { default as FileUpload } from "./FileUpload";
 export { default as DateSeparator } from "./DateSeparator";
 export { default as MessageItem } from "./MessageItem";
 export { default as VoiceChannelView } from "./VoiceChannelView";
+export { default as Chat } from "./Chat";
+export { default as VideoChat } from "./VideoChat";
+export { default as NearbyChatPanel } from "./NearbyChatPanel";
 

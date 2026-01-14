@@ -3,6 +3,8 @@
  */
 export class NPCManager {
   private npcs: Phaser.GameObjects.Container[] = [];
+  private lastUpdate = 0;
+  private updateInterval = 200; // Update NPCs every 200ms instead of every frame
 
   /**
    * Create an NPC at the specified position
@@ -48,8 +50,16 @@ export class NPCManager {
 
   /**
    * Update all NPCs (random movement)
+   * Throttled to improve performance
    */
-  updateNPCs(): void {
+  updateNPCs(time?: number): void {
+    // Throttle updates to reduce CPU usage
+    const now = time || Date.now();
+    if (now - this.lastUpdate < this.updateInterval) {
+      return;
+    }
+    this.lastUpdate = now;
+
     this.npcs.forEach((npc) => {
       const body = npc.body as Phaser.Physics.Arcade.Body;
       const sprite = npc.getData("sprite") as Phaser.GameObjects.Sprite;

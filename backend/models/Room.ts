@@ -45,5 +45,10 @@ const roomSchema = new Schema<IRoom>(
   }
 );
 
+// Indexes for performance optimization
+roomSchema.index({ roomId: 1 }); // Already unique, but explicit index
+roomSchema.index({ createdBy: 1 }); // For user's rooms queries
+roomSchema.index({ isPrivate: 1 }); // For public/private room queries
+
 export default mongoose.model<IRoom>("Room", roomSchema);
 

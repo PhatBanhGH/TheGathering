@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import GameScene from './components/GameScene';
 import Sidebar from './components/Sidebar';
 import ControlBar from './components/ControlBar';
-import VideoChat from './components/VideoChat';
+import VideoChat from './components/chat/VideoChat';
 import { SocketProvider } from './contexts/SocketContext';
 import { WebRTCProvider } from './contexts/WebRTCContext';
 import './App.css';

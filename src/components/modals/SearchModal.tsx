@@ -1,134 +1,99 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { formatRelativeTime } from "../../utils/date";
 import "./SearchModal.css";
 
-interface Message {
+interface SearchResult {
+  type: "user";
   id: string;
-  userId: string;
-  username: string;
-  message: string;
-  timestamp: number;
-  channelId?: string | null;
+  title: string;
+  content?: string;
+  author?: string;
+  createdAt: string;
 }
 
 interface SearchModalProps {
   isOpen: boolean;
   onClose: () => void;
-  roomId: string;
-  channelId?: string;
-  onMessageClick?: (messageId: string, channelId?: string) => void;
 }
 
-const SearchModal = ({
-  isOpen,
-  onClose,
-  roomId,
-  channelId,
-  onMessageClick,
-}: SearchModalProps) => {
+const SearchModal = ({ isOpen, onClose }: SearchModalProps) => {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<Message[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [hasSearched, setHasSearched] = useState(false);
+  const [results, setResults] = useState<SearchResult[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [selectedTypes, setSelectedTypes] = useState<string[]>(["user"]);
   const inputRef = useRef<HTMLInputElement>(null);
+  const navigate = useNavigate();
 
+  const serverUrl = import.meta.env.VITE_SERVER_URL || "http://localhost:5001";
+
+  // Focus input when modal opens
   useEffect(() => {
     if (isOpen && inputRef.current) {
       inputRef.current.focus();
     }
   }, [isOpen]);
 
+  // Debounced search
   useEffect(() => {
-    if (!isOpen) {
-      setQuery("");
+    if (!query.trim() || query.length < 2) {
       setResults([]);
-      setHasSearched(false);
-    }
-  }, [isOpen]);
-
-  const handleSearch = async () => {
-    if (!query.trim()) {
-      setResults([]);
-      setHasSearched(false);
       return;
     }
 
-    setIsSearching(true);
-    setHasSearched(true);
+    const timeoutId = setTimeout(() => {
+      performSearch();
+    }, 300);
 
+    return () => clearTimeout(timeoutId);
+  }, [query, selectedTypes]);
+
+  const performSearch = async () => {
+    if (!query.trim() || query.length < 2) {
+      setResults([]);
+      return;
+    }
+
+    setLoading(true);
     try {
-      const params = new URLSearchParams({
-        q: query,
-        limit: "50",
-      });
-      if (channelId) {
-        params.append("channelId", channelId);
-      }
-
+      const token = localStorage.getItem("token");
+      const typesParam = selectedTypes.join(",");
       const response = await fetch(
-        `${import.meta.env.VITE_SERVER_URL || "http://localhost:5001"}/api/chat/search/${roomId}?${params}`
+        `${serverUrl}/api/search?q=${encodeURIComponent(
+          query
+        )}&types=${typesParam}&limit=20`,
+        {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        }
       );
 
       if (response.ok) {
         const data = await response.json();
         setResults(data.results || []);
-      } else {
-        console.error("Search failed");
-        setResults([]);
       }
     } catch (error) {
-      console.error("Error searching messages:", error);
-      setResults([]);
+      console.error("Error performing search:", error);
     } finally {
-      setIsSearching(false);
+      setLoading(false);
     }
   };
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (query.trim()) {
-        handleSearch();
-      } else {
-        setResults([]);
-        setHasSearched(false);
-      }
-    }, 300); // Debounce 300ms
-
-    return () => clearTimeout(timer);
-  }, [query]);
-
-  const formatDate = (timestamp: number) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-
-    if (days === 0) {
-      return date.toLocaleTimeString("vi-VN", {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-    } else if (days === 1) {
-      return "Hôm qua";
-    } else if (days < 7) {
-      return `${days} ngày trước`;
-    } else {
-      return date.toLocaleDateString("vi-VN");
+  const handleResultClick = (result: SearchResult) => {
+    if (result.type === "user") {
+      navigate(`/app/profile/${result.id}`);
+      onClose();
     }
   };
 
-  const highlightText = (text: string, query: string) => {
-    if (!query.trim()) return text;
-    const regex = new RegExp(`(${query})`, "gi");
-    const parts = text.split(regex);
-    return parts.map((part, i) =>
-      regex.test(part) ? (
-        <mark key={i} className="search-highlight">
-          {part}
-        </mark>
-      ) : (
-        part
-      )
+  const toggleType = (type: string) => {
+    setSelectedTypes((prev) =>
+      prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]
     );
+  };
+
+  const getResultIcon = (type: string) => {
+    if (type === "user") return "👤";
+    return "🔍";
   };
 
   if (!isOpen) return null;
@@ -142,73 +107,65 @@ const SearchModal = ({
             <input
               ref={inputRef}
               type="text"
+              placeholder="Search users..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Tìm kiếm tin nhắn..."
               className="search-input"
-              onKeyDown={(e) => {
-                if (e.key === "Escape") {
-                  onClose();
-                }
-              }}
             />
             {query && (
               <button
-                className="search-clear-btn"
+                className="clear-search-btn"
                 onClick={() => setQuery("")}
-                title="Xóa"
+                title="Clear"
               >
                 ✕
               </button>
             )}
           </div>
-          <button className="search-close-btn" onClick={onClose} title="Đóng (Esc)">
+          <button className="close-btn" onClick={onClose} title="Close (Esc)">
             ✕
           </button>
         </div>
 
         <div className="search-results">
-          {isSearching ? (
-            <div className="search-loading">Đang tìm kiếm...</div>
-          ) : hasSearched && results.length === 0 ? (
+          {loading ? (
+            <div className="search-loading">Searching...</div>
+          ) : results.length === 0 && query.length >= 2 ? (
+            <div className="search-empty">No results found</div>
+          ) : query.length < 2 ? (
             <div className="search-empty">
-              Không tìm thấy kết quả cho "{query}"
+              Type at least 2 characters to search
             </div>
-          ) : hasSearched && results.length > 0 ? (
-            <>
-              <div className="search-results-header">
-                {results.length} kết quả cho "{query}"
-              </div>
-              <div className="search-results-list">
-                {results.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className="search-result-item"
-                    onClick={() => {
-                      onMessageClick?.(msg.id, msg.channelId || undefined);
-                      onClose();
-                    }}
-                  >
-                    <div className="search-result-header">
-                      <span className="search-result-username">
-                        {msg.username}
-                      </span>
-                      <span className="search-result-time">
-                        {formatDate(msg.timestamp)}
-                      </span>
-                    </div>
-                    <div className="search-result-message">
-                      {highlightText(msg.message, query)}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>
           ) : (
-            <div className="search-empty">
-              Nhập từ khóa để tìm kiếm tin nhắn
-            </div>
+            results.map((result, index) => (
+              <div
+                key={`${result.type}-${result.id}-${index}`}
+                className="search-result-item"
+                onClick={() => handleResultClick(result)}
+              >
+                <div className="result-icon">{getResultIcon(result.type)}</div>
+                <div className="result-content">
+                  <div className="result-title">{result.title}</div>
+                  {result.content && (
+                    <div className="result-snippet">{result.content}</div>
+                  )}
+                  <div className="result-meta">
+                    {result.author && (
+                      <span className="result-author">{result.author}</span>
+                    )}
+                    <span className="result-type">{result.type}</span>
+                    <span className="result-time">
+                      {formatRelativeTime(result.createdAt)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))
           )}
+        </div>
+
+        <div className="search-footer">
+          <span className="search-hint">Press Esc to close</span>
         </div>
       </div>
     </div>
@@ -216,4 +173,3 @@ const SearchModal = ({
 };
 
 export default SearchModal;
-

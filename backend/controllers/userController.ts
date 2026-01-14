@@ -9,7 +9,7 @@ interface AuthRequest extends Request {
   };
 }
 
-// Get user profile
+// Get user profile (current user)
 export const getUserProfile = async (req: Request, res: Response): Promise<void> => {
   try {
     const token = req.headers.authorization?.replace("Bearer ", "");
@@ -32,6 +32,23 @@ export const getUserProfile = async (req: Request, res: Response): Promise<void>
     res.json(user);
   } catch (error) {
     res.status(401).json({ message: "Invalid token" });
+  }
+};
+
+// Get user by ID (public profile)
+export const getUserById = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { userId } = req.params;
+    const user = await User.findById(userId).select("-password -googleId");
+
+    if (!user) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch user" });
   }
 };
 

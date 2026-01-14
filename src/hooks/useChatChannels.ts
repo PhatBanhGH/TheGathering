@@ -57,62 +57,125 @@ export const useChatChannels = (roomId: string) => {
   // Listen for voice channel updates from socket
   useEffect(() => {
     if (!socket) {
-      console.log("Socket not available for voice-channel-update listener");
       return;
     }
 
-    console.log("Setting up voice-channel-update listener");
+    const setupListener = () => {
+      if (!socket.connected) {
+        return;
+      }
 
-    const handleVoiceChannelUpdate = (data: {
-      channelId: string;
-      users: string[];
-    }) => {
-      console.log("✅ Received voice-channel-update:", {
-        channelId: data.channelId,
-        users: data.users,
-        usersCount: data.users.length,
-      });
-      setVoiceChannels((prev) => {
-        // Check if channel exists
-        const channelExists = prev.some((vc) => vc.id === data.channelId);
-        
-        if (!channelExists) {
-          console.warn(`Channel ${data.channelId} not found in voiceChannels, adding it`);
-          // Channel doesn't exist, add it
-          return [
-            ...prev,
-            {
-              id: data.channelId,
-              name: data.channelId, // Default name, should be set from server
-              users: data.users,
-              isActive: data.users.length > 0,
-            },
-          ];
-        }
+      console.log("Setting up voice-channel-update listener");
 
-        const updated = prev.map((vc) => {
-          if (vc.id === data.channelId) {
-            console.log(`Updating channel ${vc.id}:`, {
-              oldUsers: vc.users,
-              newUsers: data.users,
-              oldCount: vc.users.length,
-              newCount: data.users.length,
-            });
-            return { ...vc, users: data.users, isActive: data.users.length > 0 };
-          }
-          return vc;
+      const handleVoiceChannelUpdate = (data: {
+        channelId: string;
+        users: string[];
+      }) => {
+        console.log("✅ Received voice-channel-update:", {
+          channelId: data.channelId,
+          users: data.users,
+          usersCount: data.users.length,
         });
-        console.log("Updated voice channels:", updated.map(vc => ({ id: vc.id, users: vc.users, count: vc.users.length })));
-        return updated;
+        setVoiceChannels((prev) => {
+          // Check if channel exists
+          const channelExists = prev.some((vc) => vc.id === data.channelId);
+          
+          if (!channelExists) {
+            console.warn(`Channel ${data.channelId} not found in voiceChannels, adding it`);
+            // Channel doesn't exist, add it
+            return [
+              ...prev,
+              {
+                id: data.channelId,
+                name: data.channelId, // Default name, should be set from server
+                users: data.users,
+                isActive: data.users.length > 0,
+              },
+            ];
+          }
+
+          const updated = prev.map((vc) => {
+            if (vc.id === data.channelId) {
+              console.log(`Updating channel ${vc.id}:`, {
+                oldUsers: vc.users,
+                newUsers: data.users,
+                oldCount: vc.users.length,
+                newCount: data.users.length,
+              });
+              return { ...vc, users: data.users, isActive: data.users.length > 0 };
+            }
+            return vc;
+          });
+          console.log("Updated voice channels:", updated.map(vc => ({ id: vc.id, users: vc.users, count: vc.users.length })));
+          return updated;
+        });
+      };
+
+      socket.on("voice-channel-update", handleVoiceChannelUpdate);
+      console.log("Voice-channel-update listener registered");
+
+      return () => {
+        console.log("Cleaning up voice-channel-update listener");
+        socket.off("voice-channel-update", handleVoiceChannelUpdate);
+      };
+    };
+
+    // Setup listener if socket is already connected
+    if (socket.connected) {
+      const cleanup = setupListener();
+      return cleanup;
+    }
+
+    // Otherwise wait for connection
+    const onConnect = () => {
+      console.log("Socket connected, setting up voice-channel-update listener");
+      setupListener();
+    };
+    
+    socket.on("connect", onConnect);
+
+    return () => {
+      socket.off("connect", onConnect);
+    };
+  }, [socket]);
+
+  // Listen for channel creation events
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleChannelCreated = (data: Channel) => {
+      console.log("✅ Received channel-created event:", data);
+      setChannels((prev) => {
+        // Check if channel already exists
+        if (prev.some((ch) => ch.id === data.id)) {
+          return prev;
+        }
+        return [...prev, data];
       });
     };
 
-    socket.on("voice-channel-update", handleVoiceChannelUpdate);
-    console.log("Voice-channel-update listener registered");
+    const handleVoiceChannelCreated = (data: VoiceChannel & { isPrivate?: boolean }) => {
+      console.log("✅ Received voice-channel-created event:", data);
+      setVoiceChannels((prev) => {
+        // Check if channel already exists
+        if (prev.some((vc) => vc.id === data.id)) {
+          return prev;
+        }
+        return [...prev, {
+          id: data.id,
+          name: data.name,
+          users: data.users || [],
+          isActive: data.isActive || false,
+        }];
+      });
+    };
+
+    socket.on("channel-created", handleChannelCreated);
+    socket.on("voice-channel-created", handleVoiceChannelCreated);
 
     return () => {
-      console.log("Cleaning up voice-channel-update listener");
-      socket.off("voice-channel-update", handleVoiceChannelUpdate);
+      socket.off("channel-created", handleChannelCreated);
+      socket.off("voice-channel-created", handleVoiceChannelCreated);
     };
   }, [socket]);
 
@@ -189,8 +252,11 @@ export const useChatChannels = (roomId: string) => {
   );
 
   const createChannel = useCallback(
-    (name: string, type: "text" | "voice", description?: string) => {
-      if (!socket || !currentUser) return;
+    (name: string, type: "text" | "voice", description?: string, isPrivate?: boolean) => {
+      if (!socket || !currentUser) {
+        console.error("Cannot create channel: missing socket or currentUser");
+        return;
+      }
 
       const channelId =
         type === "text"
@@ -201,7 +267,7 @@ export const useChatChannels = (roomId: string) => {
         const newChannel: Channel = {
           id: channelId,
           name,
-          type: "text",
+          type: type,
           description,
         };
         setChannels((prev) => [...prev, newChannel]);
@@ -209,10 +275,12 @@ export const useChatChannels = (roomId: string) => {
         socket.emit("create-channel", {
           channelId,
           name,
-          type: "text",
+          type: type,
           description,
+          isPrivate: isPrivate || false,
           roomId,
         });
+        console.log("✅ Emitted create-channel:", { channelId, name, type, isPrivate });
       } else {
         const newVoiceChannel: VoiceChannel = {
           id: channelId,
@@ -225,8 +293,10 @@ export const useChatChannels = (roomId: string) => {
         socket.emit("create-voice-channel", {
           channelId,
           name,
+          isPrivate: isPrivate || false,
           roomId,
         });
+        console.log("✅ Emitted create-voice-channel:", { channelId, name, isPrivate });
       }
     },
     [socket, currentUser, roomId]
@@ -254,5 +324,3 @@ export const useChatChannels = (roomId: string) => {
     setViewedChannels,
   };
 };
-
-

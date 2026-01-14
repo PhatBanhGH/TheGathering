@@ -114,14 +114,10 @@ export const SocketProvider = ({
           // Set initial users list (excluding current user)
           setUsers(
             allRoomMembers
-              .filter((u) => u.userId !== userId)
-              .map((u) => ({
-                userId: u.userId,
-                username: u.username,
-                avatar: u.avatar || u.username.charAt(0).toUpperCase(),
-                position: u.position || { x: 0, y: 0 },
-                roomId,
-                status: (u.status || (u.isOnline ? "online" : "offline")) as "online" | "offline",
+              .filter((member) => member.userId !== currentUser?.userId)
+              .map((member) => ({
+                ...member,
+                status: "offline" as const,
               }))
           );
         } else if (response.status === 404) {
@@ -359,7 +355,12 @@ export const SocketProvider = ({
     setSocket(newSocket);
 
     return () => {
-      newSocket.close();
+      console.log("Cleaning up socket connection...");
+      // Remove all listeners before disconnecting to prevent memory leaks
+      newSocket.removeAllListeners();
+      newSocket.disconnect();
+      setSocket(null);
+      setIsConnected(false);
     };
   }, [username, roomId]);
 

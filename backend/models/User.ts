@@ -8,6 +8,7 @@ export interface IUser extends Document {
   avatar: string;
   avatarColor: string;
   status: "Available" | "Busy" | "Away" | "Do Not Disturb";
+  role?: "admin" | "moderator" | "member" | "guest";
   currentRoom?: string | null;
   position: {
     x: number;
@@ -56,6 +57,11 @@ const userSchema = new Schema<IUser>(
       default: "Available",
       enum: ["Available", "Busy", "Away", "Do Not Disturb"],
     },
+    role: {
+      type: String,
+      default: "member",
+      enum: ["admin", "moderator", "member", "guest"],
+    },
     currentRoom: {
       type: String,
       default: null,
@@ -73,6 +79,14 @@ const userSchema = new Schema<IUser>(
     timestamps: true,
   }
 );
+
+// Indexes for performance optimization
+userSchema.index({ email: 1 }); // Already unique, but explicit index
+userSchema.index({ username: 1 }); // Already unique, but explicit index
+userSchema.index({ googleId: 1 }); // For OAuth lookups
+userSchema.index({ currentRoom: 1 }); // For room user queries
+userSchema.index({ role: 1 }); // For role-based queries
+userSchema.index({ lastSeen: -1 }); // For active users queries
 
 export default mongoose.model<IUser>("User", userSchema);
 

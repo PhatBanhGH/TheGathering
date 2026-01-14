@@ -59,6 +59,7 @@ export interface Channel {
   category?: string;
   unreadCount?: number;
   description?: string;
+  isPrivate?: boolean;
 }
 
 export interface VoiceChannel {
@@ -102,8 +103,9 @@ interface ChatContextType {
   updateChannelUnread: (channelId: string, count: number) => void;
   createChannel: (
     name: string,
-    type: "text" | "voice",
-    description?: string
+    type: "text" | "voice" | "forum",
+    description?: string,
+    isPrivate?: boolean
   ) => void;
   reactToMessage: (messageId: string, emoji: string) => void;
   editMessage: (messageId: string, newContent: string) => void;

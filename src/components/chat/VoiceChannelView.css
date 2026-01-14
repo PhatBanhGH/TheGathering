@@ -4,6 +4,7 @@
   height: 100%;
   background: var(--bg-chat-area, #36393f);
   color: var(--text-primary, #dcddde);
+  overflow: hidden;
 }
 
 /* Header */
@@ -84,6 +85,21 @@
 .voice-user-card.current-user {
   border-color: var(--accent-primary, #5865f2);
   box-shadow: 0 0 0 2px rgba(88, 101, 242, 0.3);
+}
+
+.voice-user-card.speaking {
+  box-shadow: 0 0 0 3px var(--accent-success, #43b581);
+  border: 2px solid var(--accent-success, #43b581);
+  animation: speakingPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes speakingPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 3px var(--accent-success, #43b581);
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgba(67, 181, 129, 0.5);
+  }
 }
 
 .voice-user-video-container {

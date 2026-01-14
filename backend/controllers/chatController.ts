@@ -83,6 +83,22 @@ interface CreateGroupChatData {
   roomId: string;
 }
 
+interface CreateChannelData {
+  channelId: string;
+  name: string;
+  type: "text" | "voice" | "forum";
+  description?: string;
+  isPrivate?: boolean;
+  roomId: string;
+}
+
+interface CreateVoiceChannelData {
+  channelId: string;
+  name: string;
+  isPrivate?: boolean;
+  roomId: string;
+}
+
 export const registerChatHandlers = ({
   io,
   socket,
@@ -136,6 +152,75 @@ export const registerChatHandlers = ({
     console.log(
       `Group chat "${name}" created with ${validMembers.length} members`
     );
+  });
+
+  // Handle channel creation
+  socket.on("create-channel", (data: CreateChannelData) => {
+    const user = connectedUsers.get(socket.id);
+    if (!user) {
+      socket.emit("error", { message: "User not found" });
+      return;
+    }
+
+    const { channelId, name, type, description, isPrivate, roomId } = data;
+
+    // Verify user is in the same room
+    if (user.roomId !== roomId) {
+      socket.emit("error", {
+        message: "Bạn không thể tạo kênh trong phòng khác",
+      });
+      return;
+    }
+
+    // Broadcast new channel to all users in room
+    const channelData = {
+      id: channelId,
+      name,
+      type,
+      description,
+      isPrivate: isPrivate || false,
+      roomId,
+      createdBy: user.userId,
+      createdAt: Date.now(),
+    };
+
+    io.to(roomId).emit("channel-created", channelData);
+    console.log(`✅ Channel "${name}" (${type}) created by ${user.username} in room ${roomId}${isPrivate ? " (PRIVATE)" : ""}`);
+  });
+
+  // Handle voice channel creation
+  socket.on("create-voice-channel", (data: CreateVoiceChannelData) => {
+    const user = connectedUsers.get(socket.id);
+    if (!user) {
+      socket.emit("error", { message: "User not found" });
+      return;
+    }
+
+    const { channelId, name, isPrivate, roomId } = data;
+
+    // Verify user is in the same room
+    if (user.roomId !== roomId) {
+      socket.emit("error", {
+        message: "Bạn không thể tạo kênh trong phòng khác",
+      });
+      return;
+    }
+
+    // Broadcast new voice channel to all users in room
+    const channelData = {
+      id: channelId,
+      name,
+      type: "voice",
+      isPrivate: isPrivate || false,
+      roomId,
+      createdBy: user.userId,
+      createdAt: Date.now(),
+      users: [],
+      isActive: false,
+    };
+
+    io.to(roomId).emit("voice-channel-created", channelData);
+    console.log(`✅ Voice channel "${name}" created by ${user.username} in room ${roomId}${isPrivate ? " (PRIVATE)" : ""}`);
   });
 
   socket.on("chat-message", async (data: ChatMessageData) => {

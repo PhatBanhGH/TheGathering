@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { formatTime } from "../../utils/date";
 import "./MessageItem.css";
 
 interface Message {
@@ -58,12 +59,6 @@ const MessageItem = ({
     }
   }, [message.message, isEditing]);
 
-  const formatTime = (timestamp: number): string => {
-    return new Date(timestamp).toLocaleTimeString("vi-VN", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
 
   const formatMessage = (text: string): React.ReactNode => {
     // Simple formatting: **bold**, *italic*, `code`, @mentions
@@ -166,16 +161,18 @@ const MessageItem = ({
       onMouseLeave={() => setShowActions(false)}
     >
       {!isGrouped && (
-        <div 
-          className="message-avatar" 
-          style={{ backgroundColor: avatarColor }}
-          title={message.username}
-        >
-          {avatarInitial}
+        <div className="message-avatar-wrapper">
+          <div 
+            className="message-avatar" 
+            style={{ backgroundColor: avatarColor }}
+            title={message.username}
+          >
+            {avatarInitial}
+          </div>
         </div>
       )}
       <div className="message-content-wrapper">
-        {!isGrouped && (
+        {!isGrouped ? (
           <div className="message-header">
             <span 
               className="message-username" 
@@ -191,6 +188,11 @@ const MessageItem = ({
               )}
             </span>
           </div>
+        ) : (
+          // Show small timestamp for grouped messages (Discord-like)
+          <span className="message-timestamp-grouped">
+            {formatTime(message.timestamp)}
+          </span>
         )}
         
         {message.replyTo && (

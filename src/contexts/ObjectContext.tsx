@@ -58,11 +58,16 @@ export const ObjectProvider = ({ children }: ObjectProviderProps) => {
       const response = await fetch(
         `${
           import.meta.env.VITE_SERVER_URL || "http://localhost:5001"
-        }/api/objects/room/${currentUser.roomId}`
+        }/api/world/objects/room/${currentUser.roomId}`
       );
       if (response.ok) {
         const data = await response.json();
-        setObjects(data);
+        setObjects(data || []);
+      } else if (response.status === 404) {
+        // Room might not have objects yet, set empty array
+        setObjects([]);
+      } else {
+        console.error("Failed to fetch objects:", response.status);
       }
     } catch (error) {
       console.error("Error fetching objects:", error);

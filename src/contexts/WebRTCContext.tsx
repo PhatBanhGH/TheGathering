@@ -474,10 +474,55 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
         });
       });
 
-      peer.on("error", (err) => console.error(`❌ Peer error ${userId}:`, err));
+      peer.on("error", (err) => {
+        console.error(`❌ Peer error ${userId}:`, err);
+        // Log error details for debugging
+        console.error(`Error details:`, {
+          name: err.name,
+          message: err.message,
+        });
+        
+        // Don't auto-reconnect here - let the connection logic handle it
+        // Auto-reconnection can cause issues with signaling
+      });
+
+      // Track connection state
+      let connectionTimeout: NodeJS.Timeout | null = null;
+      
+      peer.on("connect", () => {
+        console.log(`✅ Peer connected ${userId}`);
+        // Clear timeout when connected
+        if (connectionTimeout) {
+          clearTimeout(connectionTimeout);
+          connectionTimeout = null;
+        }
+      });
+
+      // Add timeout for peer connection (30 seconds)
+      connectionTimeout = setTimeout(() => {
+        if (peersRef.current.has(userId)) {
+          const peerConn = peersRef.current.get(userId);
+          // Check if peer is connected
+          const isConnected = (peerConn?.peer as any)?._pc?.connectionState === "connected";
+          if (!isConnected) {
+            console.warn(`⏱️ Peer connection timeout for ${userId}, destroying...`);
+            peerConn?.peer.destroy();
+            setPeers((prev) => {
+              const newMap = new Map(prev);
+              newMap.delete(userId);
+              return newMap;
+            });
+          }
+        }
+      }, 30000);
 
       peer.on("close", () => {
         console.log(`🔌 Peer closed ${userId}`);
+        // Clear timeout on close
+        if (connectionTimeout) {
+          clearTimeout(connectionTimeout);
+          connectionTimeout = null;
+        }
         setPeers((prev) => {
           const newMap = new Map(prev);
           newMap.delete(userId);
@@ -537,12 +582,42 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
       peersRef.current.forEach((conn, userId) => {
         if (!userIds.includes(userId) && userId !== currentUser.userId) {
           console.log(`🗑 User ${userId} left. Destroying peer.`);
-          conn.peer.destroy();
+          try {
+            conn.peer.destroy();
+          } catch (error) {
+            console.warn(`Error destroying peer for ${userId}:`, error);
+          }
           setPeers((prev) => {
             const newMap = new Map(prev);
             newMap.delete(userId);
             return newMap;
           });
+        }
+      });
+
+      // 3. Reconnect failed peers (check connection state)
+      peersRef.current.forEach((conn, userId) => {
+        if (userIds.includes(userId) && userId !== currentUser.userId) {
+          try {
+            const pc = (conn.peer as any)?._pc;
+            if (pc) {
+              const connectionState = pc.connectionState;
+              if (connectionState === "failed" || connectionState === "disconnected") {
+                console.log(`🔄 Peer ${userId} is ${connectionState}, attempting to reconnect...`);
+                // Destroy old peer and recreate
+                conn.peer.destroy();
+                const isInitiator = currentUser.userId < userId;
+                const newPeer = createPeer(userId, isInitiator, localStream);
+                setPeers((prev) => {
+                  const newMap = new Map(prev);
+                  newMap.set(userId, { peer: newPeer, userId });
+                  return newMap;
+                });
+              }
+            }
+          } catch (error) {
+            console.warn(`Error checking/reconnecting peer ${userId}:`, error);
+          }
         }
       });
     },
@@ -627,14 +702,41 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [socket, localStream, currentUser, createPeer]);
 
-  // Cleanup retry timeout khi unmount
+  // Cleanup khi component unmount
   useEffect(() => {
     return () => {
+      console.log("Cleaning up WebRTC context...");
+      // Clear retry timeout
       if (retryTimeoutRef.current) {
         clearTimeout(retryTimeoutRef.current);
+        retryTimeoutRef.current = null;
       }
+      
+      // Stop all media streams
+      if (localStream) {
+        localStream.getTracks().forEach((track) => track.stop());
+      }
+      
+      // Destroy all peer connections
+      peersRef.current.forEach((conn) => {
+        try {
+          conn.peer.destroy();
+        } catch (error) {
+          console.warn("Error destroying peer on cleanup:", error);
+        }
+      });
+      
+      // Release camera lock
+      cameraManager.releaseCameraLock();
+      cameraManager.setStream(null);
+      
+      // Clear refs
+      peersRef.current.clear();
+      voiceChannelUsersRef.current = [];
+      startMediaRef.current = false;
+      retryCountRef.current = 0;
     };
-  }, []);
+  }, [localStream]);
 
   return (
     <WebRTCContext.Provider

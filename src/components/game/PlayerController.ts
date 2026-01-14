@@ -10,6 +10,8 @@ export class PlayerController {
   private isSitting = false;
   private wasMoving = false;
   private lastDirection = "down";
+  private lastSentTime = 0;
+  private movementThrottleMs = 100; // Send position update max every 100ms (10 updates/sec)
   private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd?: {
     W: Phaser.Input.Keyboard.Key;
@@ -142,7 +144,11 @@ export class PlayerController {
         this.playerPosition.y
       );
 
-      if (distance > 5 && socket) {
+      const now = Date.now();
+      const timeSinceLastSend = now - this.lastSentTime;
+      
+      // Throttle: only send if moved enough distance AND enough time has passed
+      if (distance > 5 && timeSinceLastSend >= this.movementThrottleMs && socket) {
         const payload = {
           x: this.playerPosition.x,
           y: this.playerPosition.y,
@@ -159,6 +165,7 @@ export class PlayerController {
           // Ignore storage errors
         }
         this.lastSentPosition = { ...this.playerPosition };
+        this.lastSentTime = now;
       }
     }
   }

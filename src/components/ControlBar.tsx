@@ -4,7 +4,7 @@ import { useWebRTC } from "../contexts/WebRTCContext";
 import { useSocket } from "../contexts/SocketContext";
 import { SettingsModal } from "./modals";
 import ReactionPanel from "./ReactionPanel";
-import NearbyChatPanel from "./NearbyChatPanel";
+import NearbyChatPanel from "./chat/NearbyChatPanel";
 import "./ControlBar.css";
 
 const ControlBar = () => {

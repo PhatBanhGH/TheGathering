@@ -7,16 +7,21 @@ import dotenv from "dotenv";
 import nodemailer from "nodemailer";
 import jwt from "jsonwebtoken";
 import { OAuth2Client } from "google-auth-library";
+import { sanitizeBody, sanitizeQuery } from "./middleware/security.js";
+import { apiRateLimiter } from "./middleware/rateLimiter.js";
+import { requestLogger, errorHandler, notFoundHandler } from "./middleware/logging.js";
+import { logger } from "./utils/logger.js";
 
 // Import existing routes and models
 import authRoutes from "./routes/auth.js";
 import chatRoutes from "./routes/chatRoutes.js";
-import objectRoutes from "./routes/objectRoutes.js";
-import mapRoutes from "./routes/mapRoutes.js";
+import worldRoutes from "./routes/worldRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
-import eventRoutes from "./routes/eventRoutes.js";
-import roomRoutes from "./routes/roomRoutes.js";
+import spaceRoutes from "./routes/spaceRoutes.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
+import analyticsRoutes from "./routes/analyticsRoutes.js";
+import notificationRoutes from "./routes/notificationRoutes.js";
+import searchRoutes from "./routes/searchRoutes.js";
 import { registerChatHandlers } from "./controllers/chatController.js";
 import Room from "./models/Room.js";
 import RoomMember from "./models/RoomMember.js";
@@ -43,6 +48,23 @@ app.use(
 
 app.use(express.json());
 
+// Apply input sanitization middleware globally
+app.use(sanitizeBody);
+app.use(sanitizeQuery);
+
+// Health check endpoint (before rate limiting)
+app.get("/health", (req: Request, res: Response) => {
+  res.status(200).json({ 
+    status: "healthy",
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    database: mongoose.connection.readyState === 1 ? "connected" : "disconnected"
+  });
+});
+
+// Apply rate limiting to all API routes
+app.use("/api", apiRateLimiter);
+
 // Socket.IO Setup
 const io = new Server(httpServer, {
   cors: {
@@ -56,8 +78,8 @@ const io = new Server(httpServer, {
 // MongoDB Connection
 mongoose
   .connect(process.env.MONGODB_URI || "mongodb://localhost:27017/gather-town")
-  .then(() => console.log("MongoDB connected"))
-  .catch((err) => console.error("MongoDB connection error:", err));
+  .then(() => logger.info("MongoDB connected successfully"))
+  .catch((err) => logger.error("MongoDB connection error", err));
 
 // ----------------------------------------------------------------
 // PHẦN LOGIC AUTH (Google + OTP)
@@ -218,12 +240,19 @@ app.post("/api/auth/verify-otp", async (req: Request, res: Response) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/chat", chatRoutes);
-app.use("/api/objects", objectRoutes);
-app.use("/api/maps", mapRoutes);
+app.use("/api/world", worldRoutes);
 app.use("/api/users", userRoutes);
-app.use("/api/events", eventRoutes);
-app.use("/api/rooms", roomRoutes);
+app.use("/api/spaces", spaceRoutes);
 app.use("/api/uploads", uploadRoutes);
+app.use("/api/analytics", analyticsRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/search", searchRoutes);
+
+// 404 handler (must be before error handler)
+app.use(notFoundHandler);
+
+// Error handler (must be last)
+app.use(errorHandler);
 
 app.get("/api/health", (req: Request, res: Response) => {
   res.json({ status: "ok", message: "Server is running" });
@@ -267,10 +296,7 @@ app.get("/api/rooms/:roomId/users", async (req: Request, res: Response) => {
   }
 });
 
-// Error handling middleware (should be after all routes)
-import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
-app.use(notFoundHandler);
-app.use(errorHandler);
+// Error handling middleware is already imported and used above
 
 // Socket.IO Connection Handling
 interface ConnectedUser {
@@ -296,6 +322,7 @@ const connectedUsers = new Map<string, ConnectedUser>(); // socketId -> userData
 const roomUsers = new Map<string, Set<string>>(); // roomId -> Set of socketIds
 const groupChats = new Map<string, GroupChat>(); // groupId -> { id, name, members, roomId, createdBy }
 const voiceChannels = new Map<string, Set<string>>(); // channelId -> Set of userIds (GLOBAL, shared across all connections)
+const batchUpdateIntervals = new Map<string, NodeJS.Timeout>(); // roomId -> interval for batch position updates
 
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
@@ -374,6 +401,7 @@ io.on("connection", (socket) => {
       socket.join(roomId);
 
       // Save/Update RoomMember in database FIRST (mark as online)
+      // Use upsert with proper error handling to prevent race conditions
       try {
         await RoomMember.findOneAndUpdate(
           { roomId, userId },
@@ -386,11 +414,38 @@ io.on("connection", (socket) => {
             lastSeen: new Date(),
             $setOnInsert: { joinedAt: new Date() },
           },
-          { upsert: true, new: true }
+          { 
+            upsert: true, 
+            new: true,
+            setDefaultsOnInsert: true,
+            // Use runValidators to ensure data integrity
+            runValidators: true
+          }
         );
         console.log(`Updated RoomMember ${userId} to online in room ${roomId}`);
-      } catch (error) {
-        console.error("Error saving RoomMember:", error);
+      } catch (error: any) {
+        // Handle duplicate key errors (race condition)
+        if (error.code === 11000) {
+          // Duplicate key - try to update existing record
+          console.log(`Duplicate key detected for ${userId} in room ${roomId}, updating existing record...`);
+          try {
+            await RoomMember.findOneAndUpdate(
+              { roomId, userId },
+              {
+                username: username.trim(),
+                avatar: avatar || username.trim().charAt(0).toUpperCase(),
+                isOnline: true,
+                lastSeen: new Date(),
+              },
+              { new: true }
+            );
+            console.log(`Updated existing RoomMember ${userId} to online in room ${roomId}`);
+          } catch (updateError) {
+            console.error("Error updating existing RoomMember:", updateError);
+          }
+        } else {
+          console.error("Error saving RoomMember:", error);
+        }
       }
 
       // Load ALL room members from database AFTER updating
@@ -508,6 +563,9 @@ io.on("connection", (socket) => {
           room.maxUsers
         })`
       );
+
+      // Start batch position update interval for this room if not already started
+      startBatchUpdateForRoom(roomId);
     } catch (error) {
       console.error("Error in user-join:", error);
       socket.emit("error", { message: "Failed to join room" });
@@ -521,7 +579,7 @@ io.on("connection", (socket) => {
       user.position = data.position || { x: data.x, y: data.y };
       user.direction = data.direction;
 
-      // Emit individual player movement to others in room
+      // Emit individual player movement to others in room (real-time)
       socket.to(user.roomId).emit("playerMoved", {
         userId: user.userId,
         username: user.username,
@@ -529,27 +587,47 @@ io.on("connection", (socket) => {
         direction: user.direction,
       });
 
-      // Also send batch update of all players positions
-      const allPlayersInRoom = Array.from(roomUsers.get(user.roomId) || [])
-        .map((id) => {
-          const u = connectedUsers.get(id);
-          if (u) {
-            return {
-              userId: u.userId,
-              username: u.username,
-              avatar: u.avatar,
-              position: u.position,
-              direction: u.direction,
-            };
-          }
-          return null;
-        })
-        .filter(Boolean);
-
-      // Send to sender as well for consistency
-      socket.emit("allPlayersPositions", allPlayersInRoom);
+      // Batch update is now sent via interval (see below) to reduce network traffic
     }
   });
+
+  // Batch position updates - send all players positions periodically (every 500ms)
+  // This reduces network traffic while still keeping positions synchronized
+  // Start batch update interval for room if not already started
+  const startBatchUpdateForRoom = (roomId: string) => {
+    if (!batchUpdateIntervals.has(roomId)) {
+      const interval = setInterval(() => {
+        if (!roomUsers.has(roomId) || roomUsers.get(roomId)?.size === 0) {
+          clearInterval(interval);
+          batchUpdateIntervals.delete(roomId);
+          return;
+        }
+
+        const allPlayersInRoom = Array.from(roomUsers.get(roomId) || [])
+          .map((id) => {
+            const u = connectedUsers.get(id);
+            if (u) {
+              return {
+                userId: u.userId,
+                username: u.username,
+                avatar: u.avatar,
+                position: u.position,
+                direction: u.direction,
+              };
+            }
+            return null;
+          })
+          .filter(Boolean);
+
+        // Broadcast to all users in room
+        if (allPlayersInRoom.length > 0) {
+          io.to(roomId).emit("allPlayersPositions", allPlayersInRoom);
+        }
+      }, 500); // Every 500ms
+
+      batchUpdateIntervals.set(roomId, interval);
+    }
+  };
 
   // Handle reactions
   socket.on("reaction", (data) => {
@@ -773,6 +851,7 @@ io.on("connection", (socket) => {
       console.log(`Broadcasted user-left for ${username} to room ${roomId}`);
 
       // Update RoomMember to offline in database if no other connections
+      // Use atomic update to prevent race conditions
       if (!hasOtherConnections) {
         try {
           console.log(`Marking user ${userId} as offline in database`);
@@ -781,6 +860,11 @@ io.on("connection", (socket) => {
             {
               isOnline: false,
               lastSeen: new Date(),
+            },
+            {
+              // Ensure atomic update
+              new: false, // Don't return updated doc, just update
+              runValidators: true
             }
           );
           
@@ -849,12 +933,32 @@ io.on("connection", (socket) => {
         }
       }
 
-      connectedUsers.delete(socket.id);
+      // Note: connectedUsers.delete was already called above, so this is redundant
+      // But keeping for safety - check if it exists first
+      if (connectedUsers.has(socket.id)) {
+        connectedUsers.delete(socket.id);
+      }
+
+      // Cleanup batch update interval if room is empty
+      if (roomUsers.has(roomId) && roomUsers.get(roomId)?.size === 0) {
+        const interval = batchUpdateIntervals.get(roomId);
+        if (interval) {
+          clearInterval(interval);
+          batchUpdateIntervals.delete(roomId);
+          console.log(`Cleaned up batch update interval for room ${roomId}`);
+        }
+      }
+
       console.log(`${user.username} (${user.userId}) disconnected and removed from connectedUsers`);
+    } else {
+      console.log(`Socket ${socket.id} disconnected but was not in connectedUsers`);
     }
   });
 });
 
 httpServer.listen(PORT, () => {
-  console.log(`✅ Backend server (TypeScript) running on port ${PORT}`);
+  logger.info(`Backend server running on port ${PORT}`, {
+    port: PORT,
+    nodeEnv: process.env.NODE_ENV || "development",
+  });
 });

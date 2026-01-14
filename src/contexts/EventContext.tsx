@@ -64,11 +64,16 @@ export const EventProvider = ({ children }: EventProviderProps) => {
       const response = await fetch(
         `${
           import.meta.env.VITE_SERVER_URL || "http://localhost:5001"
-        }/api/events/room/${roomId}`
+        }/api/spaces/${roomId}/events`
       );
       if (response.ok) {
         const data = await response.json();
-        setEvents(data);
+        setEvents(data || []);
+      } else if (response.status === 404) {
+        // Room might not have events yet, set empty array
+        setEvents([]);
+      } else {
+        console.error("Failed to fetch events:", response.status);
       }
     } catch (error) {
       console.error("Error fetching events:", error);
@@ -79,17 +84,22 @@ export const EventProvider = ({ children }: EventProviderProps) => {
 
   const createEvent = async (event: Partial<Event>): Promise<Event | null> => {
     const roomId = localStorage.getItem("roomId") || "default-room";
-    if (!currentUser || !roomId) return null;
+    if (!currentUser || !roomId) {
+      console.error("Cannot create event: missing currentUser or roomId");
+      return null;
+    }
 
     try {
+      const token = localStorage.getItem("token");
       const response = await fetch(
         `${
           import.meta.env.VITE_SERVER_URL || "http://localhost:5001"
-        }/api/events`,
+        }/api/spaces/${roomId}/events`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            ...(token && { Authorization: `Bearer ${token}` }),
           },
           body: JSON.stringify({
             ...event,
@@ -103,10 +113,15 @@ export const EventProvider = ({ children }: EventProviderProps) => {
         const newEvent = await response.json();
         await fetchEvents();
         return newEvent;
+      } else {
+        const errorData = await response.json().catch(() => ({ message: "Unknown error" }));
+        console.error("Failed to create event:", response.status, errorData);
+        alert(`Không thể tạo sự kiện: ${errorData.message || "Lỗi không xác định"}`);
+        return null;
       }
-      return null;
     } catch (error) {
       console.error("Error creating event:", error);
+      alert("Lỗi khi tạo sự kiện. Vui lòng thử lại.");
       return null;
     }
   };
