@@ -10,7 +10,7 @@ const Sidebar = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Xác định tab active dựa trên route hiện tại
+  // Determine active tab based on current route
   const getActiveTab = () => {
     if (location.pathname === "/app/chat") return "chat";
     if (location.pathname.includes("/app")) return "users";
@@ -19,12 +19,12 @@ const Sidebar = () => {
 
   const [activeTab, setActiveTab] = useState<"users" | "chat">(getActiveTab());
 
-  // Đồng bộ activeTab khi location thay đổi
+  // Sync activeTab when location changes
   useEffect(() => {
     setActiveTab(getActiveTab());
   }, [location.pathname]);
 
-  // Gộp danh sách user giống panel chat: 1 bản duy nhất theo username, ưu tiên online
+  // Merge user list like chat panel: unique by username, prioritize online
   const {
     onlineUsers,
     offlineUsers,
@@ -82,16 +82,12 @@ const Sidebar = () => {
   const roomId = localStorage.getItem("roomId") || "default-room";
 
   const handleExit = () => {
-    // Disconnect socket before navigating to ensure backend receives disconnect event
-    // This will trigger user-left event and update user status to offline
     if (socket) {
       console.log("Disconnecting socket before exit...");
       socket.disconnect();
     }
-    // Clear local storage
     localStorage.removeItem("roomId");
     localStorage.removeItem("userId");
-    // Navigate to spaces
     navigate("/spaces");
   };
 
@@ -108,183 +104,185 @@ const Sidebar = () => {
 
   return (
     <div
-      className={`w-80 h-screen bg-gradient-to-b from-white to-gray-50 text-gray-900 flex overflow-hidden transition-all duration-300 shadow-[2px_0_8px_rgba(0,0,0,0.08)] ${
-        activeTab !== "users" ? "w-[57px]" : ""
+      className={`h-screen bg-[#0f0e13]/90 backdrop-blur-2xl text-slate-100 flex overflow-hidden transition-all duration-300 border-r border-white/10 ${
+        activeTab !== "users" ? "w-[72px]" : "w-80"
       }`}
     >
       {/* Vertical Navigation Strip */}
-      <div className="w-14 bg-gradient-to-b from-gray-50 to-white flex flex-col items-center py-4 gap-3 flex-shrink-0 border-r border-gray-200/50">
+      <div className="w-[72px] bg-black/20 flex flex-col items-center py-6 gap-4 flex-shrink-0 border-r border-white/5">
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-600 to-fuchsia-600 flex items-center justify-center mb-4 shadow-lg shadow-violet-500/20">
+            <span className="font-bold text-lg font-display">G</span>
+        </div>
+
         <button
-          className={`w-11 h-11 flex items-center justify-center bg-transparent border-none rounded-xl cursor-pointer text-xl transition-all duration-200 shadow-sm ${
+          className={`w-12 h-12 flex flex-col items-center justify-center gap-1 rounded-xl cursor-pointer transition-all duration-200 group relative ${
             activeTab === "users"
-              ? "bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shadow-[0_4px_12px_rgba(99,102,241,0.4)] scale-105"
-              : "text-gray-500 hover:bg-gray-100 hover:text-gray-800 hover:scale-105"
+              ? "bg-white/10 text-white shadow-[0_0_15px_rgba(139,92,246,0.3)]"
+              : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
           }`}
           onClick={() => handleTabClick("users")}
           title="People"
         >
-          🗺️
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+          </svg>
+          {activeTab === "users" && <div className="absolute -right-[1px] top-2 bottom-2 w-1 rounded-l-full bg-violet-500" />}
         </button>
         <button
-          className={`w-11 h-11 flex items-center justify-center bg-transparent border-none rounded-xl cursor-pointer text-xl transition-all duration-200 shadow-sm ${
+          className={`w-12 h-12 flex flex-col items-center justify-center gap-1 rounded-xl cursor-pointer transition-all duration-200 group relative ${
             activeTab === "chat"
-              ? "bg-gradient-to-br from-indigo-500 to-indigo-600 text-white shadow-[0_4px_12px_rgba(99,102,241,0.4)] scale-105"
-              : "text-gray-500 hover:bg-gray-100 hover:text-gray-800 hover:scale-105"
+              ? "bg-white/10 text-white shadow-[0_0_15px_rgba(139,92,246,0.3)]"
+              : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
           }`}
           onClick={() => handleTabClick("chat")}
           title="Chat"
         >
-          💬
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+          </svg>
+           {activeTab === "chat" && <div className="absolute -right-[1px] top-2 bottom-2 w-1 rounded-l-full bg-violet-500" />}
         </button>
       </div>
 
-      {/* Notification Center */}
-      <div className="sidebar-notifications">
-        <NotificationCenter />
-      </div>
-
-      {/* Main Sidebar Panel - Only show for Users tab */}
+      {/* Main Sidebar Panel */}
       {activeTab === "users" && (
-        <div className="flex-1 flex flex-col overflow-y-auto min-w-[263px] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb:hover]:bg-gray-400">
-          <div className="px-5 py-5 border-b border-gray-200/60 bg-white/80 backdrop-blur-sm flex justify-between items-center shadow-sm">
-            <h2 className="m-0 text-lg font-bold text-gray-900 tracking-tight whitespace-nowrap overflow-hidden text-ellipsis bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+        <div className="flex-1 flex flex-col overflow-hidden animate-slideRight">
+          {/* Header */}
+          <div className="h-16 px-5 border-b border-white/10 flex justify-between items-center bg-white/[0.02]">
+            <h2 className="m-0 text-lg font-display font-semibold text-white tracking-tight whitespace-nowrap overflow-hidden text-ellipsis">
               {projectName}
             </h2>
-            <NotificationCenter />
+            <div className="transform scale-90">
+             <NotificationCenter />
+            </div>
           </div>
 
-          <div className="px-5 py-5 border-b border-gray-100/60 bg-gradient-to-br from-indigo-50/50 to-purple-50/30">
-            <h3 className="m-0 mb-2 text-sm font-bold text-gray-900 tracking-tight">
-              Experience Gather together
-            </h3>
-            <p className="m-0 mb-4 text-sm text-gray-600 leading-relaxed">
-              Invite your closest collaborators.
-            </p>
+          {/* Invite Card */}
+          <div className="p-4 mx-4 mt-4 mb-2 rounded-2xl bg-gradient-to-br from-violet-500/10 to-fuchsia-500/10 border border-white/10">
+            <div className="flex items-start gap-3 mb-3">
+              <div className="w-8 h-8 rounded-lg bg-violet-500/20 flex items-center justify-center flex-shrink-0 text-violet-300">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="m-0 mb-1 text-sm font-semibold text-white font-display">
+                  Invite Peers
+                </h3>
+                <p className="m-0 text-[11px] text-slate-400 leading-relaxed font-light">
+                  Share the link to invite others to this space.
+                </p>
+              </div>
+            </div>
             <button
-              className="w-full px-4 py-3 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white border-none rounded-xl text-sm font-semibold cursor-pointer transition-all duration-200 shadow-[0_4px_12px_rgba(99,102,241,0.3)] hover:shadow-[0_6px_16px_rgba(99,102,241,0.4)] hover:scale-[1.02] active:scale-[0.98]"
+              className="w-full py-2 bg-white/10 hover:bg-violet-600 hover:text-white hover:border-violet-500 text-violet-200 border border-white/10 rounded-lg text-xs font-medium cursor-pointer transition-all duration-200 shadow-sm"
               onClick={() => setShowInviteModal(true)}
             >
-              Invite
+              Copy Invite Link
             </button>
           </div>
 
-          <div className="px-5 py-4 border-b border-gray-100/60 bg-white">
-            <div className="relative">
+          {/* Search */}
+          <div className="px-5 py-3">
+            <div className="relative group">
+              <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-slate-500 group-focus-within:text-violet-400 transition-colors">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+              </div>
               <input
                 type="text"
-                placeholder="Search people"
+                placeholder="Search people..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full px-3 py-2.5 bg-gray-50/80 border border-gray-200/60 rounded-xl text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 focus:bg-white transition-all shadow-sm"
+                className="w-full pl-9 pr-3 py-2.5 bg-black/20 border border-white/10 rounded-xl text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-violet-500/50 focus:border-violet-500/50 focus:bg-black/40 transition-all font-light"
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 font-medium bg-gray-100 px-1.5 py-0.5 rounded">
-                Ctrl F
-              </span>
             </div>
           </div>
 
-          {/* Online Users Panel - Trực tuyến */}
-          <div className="flex-1 flex flex-col overflow-y-auto px-5 py-5">
-            <div className="text-xs font-bold text-gray-500 mb-4 uppercase tracking-widest flex items-center gap-2">
-              <div className="w-1 h-4 bg-gradient-to-b from-indigo-500 to-purple-500 rounded-full"></div>
-              <span>Trực tuyến ({onlineUsers.length}/20)</span>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              {filteredOnlineUsers.map((user) => (
-                <div
-                  key={user.userId}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-all duration-200 hover:bg-gradient-to-r hover:from-indigo-50/50 hover:to-purple-50/30 hover:shadow-sm hover:translate-x-1 group"
-                >
-                  <div className="relative flex-shrink-0">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 text-white flex items-center justify-center font-bold text-sm border-2 border-white shadow-[0_2px_8px_rgba(99,102,241,0.3)] group-hover:shadow-[0_4px_12px_rgba(99,102,241,0.4)] group-hover:scale-110 transition-all">
-                      {user.avatar}
-                    </div>
-                    <div className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full bg-green-500 border-[2.5px] border-white shadow-[0_2px_4px_rgba(34,197,94,0.4)]"></div>
-                  </div>
-                  <div className="flex flex-col flex-1 min-w-0">
-                    <span className="text-sm font-semibold text-gray-900 whitespace-nowrap overflow-hidden text-ellipsis tracking-tight">
-                      {user.username}
-                    </span>
-                    <span className="text-xs text-green-600 font-medium flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
-                      Online
-                    </span>
-                  </div>
-                  <button
-                    className="bg-transparent border border-gray-200 rounded-lg w-7 h-7 flex items-center justify-center cursor-pointer text-gray-500 text-sm font-bold transition-all duration-200 flex-shrink-0 hover:bg-indigo-50 hover:border-indigo-400 hover:text-indigo-600 hover:scale-110 hover:rotate-90"
-                    onClick={() => {
-                      // Follow functionality
-                      console.log("Follow", user.userId);
-                    }}
-                    title="Follow"
-                  >
-                    +
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Offline Users Panel - Ngoại tuyến */}
-          {filteredOfflineUsers.length > 0 && (
-            <div className="flex flex-col px-5 py-5 border-t border-gray-200/60 bg-gradient-to-b from-gray-50/50 to-white">
-              <div className="text-xs font-bold text-gray-500 mb-4 uppercase tracking-widest flex items-center gap-2">
-                <div className="w-1 h-4 bg-gradient-to-b from-gray-400 to-gray-500 rounded-full"></div>
-                <span>Ngoại tuyến ({offlineUsers.length})</span>
+          {/* Users List */}
+          <div className="flex-1 overflow-y-auto px-3 scrollbar-hide">
+            {/* Online */}
+            <div className="mb-4">
+              <div className="px-3 py-2 text-[11px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2 font-display">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]"></span>
+                Online — {onlineUsers.length}
               </div>
-              <div className="flex flex-col gap-1.5">
-                {filteredOfflineUsers.map((user) => (
+              
+              <div className="flex flex-col gap-1">
+                {filteredOnlineUsers.map((user) => (
                   <div
                     key={user.userId}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-all duration-200 opacity-75 hover:opacity-100 hover:bg-gray-100/60 hover:shadow-sm hover:translate-x-1 group"
+                    className="flex items-center gap-3 px-3 py-2 rounded-xl cursor-pointer transition-all duration-200 hover:bg-white/5 group border border-transparent hover:border-white/5"
                   >
                     <div className="relative flex-shrink-0">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-400 to-gray-500 text-white flex items-center justify-center font-bold text-sm border-2 border-white shadow-sm group-hover:shadow-md transition-all">
+                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center font-bold text-xs shadow-md ring-2 ring-transparent group-hover:ring-white/10 transition-all">
                         {user.avatar}
                       </div>
-                      <div className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full bg-gray-400 border-[2.5px] border-white shadow-sm"></div>
+                      <div className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-500 border-[2.5px] border-[#0f0e13]"></div>
                     </div>
                     <div className="flex flex-col flex-1 min-w-0">
-                      <span className="text-sm font-semibold text-gray-700 whitespace-nowrap overflow-hidden text-ellipsis tracking-tight">
+                      <span className="text-[13px] font-medium text-slate-200 whitespace-nowrap overflow-hidden text-ellipsis group-hover:text-white transition-colors">
                         {user.username}
                       </span>
-                      <span className="text-xs text-gray-500 font-medium flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
-                        Offline
+                      <span className="text-[10px] text-emerald-500/80 font-medium">
+                        Active now
                       </span>
                     </div>
-                    <button
-                      className="bg-transparent border border-gray-200 rounded-lg w-7 h-7 flex items-center justify-center cursor-pointer text-gray-400 text-sm font-bold transition-all duration-200 flex-shrink-0 hover:bg-gray-100 hover:border-gray-300 hover:text-gray-600 hover:scale-110 hover:rotate-90"
-                      onClick={() => {
-                        // Follow functionality
-                        console.log("Follow", user.userId);
-                      }}
-                      title="Follow"
-                    >
-                      +
-                    </button>
                   </div>
                 ))}
+                {filteredOnlineUsers.length === 0 && (
+                   <div className="px-4 py-6 text-center opacity-40">
+                      <p className="text-xs">No one is online</p>
+                   </div>
+                )}
               </div>
             </div>
-          )}
 
-          <div className="mt-auto px-5 py-4 border-t border-gray-200/60 flex flex-col gap-3 bg-gradient-to-b from-white to-gray-50/50 shadow-[0_-2px_8px_rgba(0,0,0,0.04)]">
-            <div className="flex items-center gap-2 text-sm font-medium text-gray-600">
-              <div
-                className={`w-2.5 h-2.5 rounded-full shadow-sm ${
-                  isConnected ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)]" : "bg-red-400 shadow-[0_0_8px_rgba(239,68,68,0.4)]"
-                }`}
-              />
-              <span className={isConnected ? "text-green-600" : "text-red-500"}>
-                {isConnected ? "Connected" : "Disconnected"}
-              </span>
+            {/* Offline */}
+            {offlineUsers.length > 0 && (
+              <div className="mb-4">
+                <div className="px-3 py-2 text-[11px] font-bold text-slate-600 uppercase tracking-widest flex items-center gap-2 font-display">
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-700"></span>
+                  Offline — {offlineUsers.length}
+                </div>
+                 <div className="flex flex-col gap-1">
+                  {filteredOfflineUsers.map((user) => (
+                    <div
+                      key={user.userId}
+                      className="flex items-center gap-3 px-3 py-2 rounded-xl cursor-pointer transition-all duration-200 hover:bg-white/5 group opacity-60 hover:opacity-100"
+                    >
+                      <div className="relative flex-shrink-0 grayscale group-hover:grayscale-0 transition-all">
+                        <div className="w-9 h-9 rounded-full bg-slate-800 text-slate-400 flex items-center justify-center font-bold text-xs shadow-inner">
+                          {user.avatar}
+                        </div>
+                      </div>
+                      <div className="flex flex-col flex-1 min-w-0">
+                        <span className="text-[13px] font-medium text-slate-400 whitespace-nowrap overflow-hidden text-ellipsis group-hover:text-slate-200">
+                          {user.username}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Footer Control */}
+          <div className="p-4 border-t border-white/10 bg-black/20 backdrop-blur-md">
+            <div className="flex items-center justify-between mb-3 text-xs font-medium">
+               <div className="flex items-center gap-2">
+                 <div className={`w-2 h-2 rounded-full ${isConnected ? "bg-emerald-500 animate-pulse" : "bg-red-500"}`} />
+                 <span className={isConnected ? "text-emerald-400" : "text-red-400"}>
+                    {isConnected ? "Connected" : "Disconnected"}
+                 </span>
+               </div>
             </div>
             <button
-              className="px-4 py-2.5 bg-gradient-to-r from-red-500 to-red-600 text-white border-none rounded-xl text-sm font-semibold cursor-pointer transition-all duration-200 shadow-[0_4px_12px_rgba(239,68,68,0.3)] hover:shadow-[0_6px_16px_rgba(239,68,68,0.4)] hover:scale-[1.02] active:scale-[0.98]"
+              className="w-full py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-lg text-xs font-semibold cursor-pointer transition-all duration-200 hover:shadow-lg hover:shadow-red-900/20 active:scale-95 flex items-center justify-center gap-2"
               onClick={handleExit}
             >
-              Thoát
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
+              Leave Space
             </button>
           </div>
         </div>

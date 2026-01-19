@@ -9,9 +9,6 @@ const lazyAny = (loader: () => Promise<{ default: ComponentType<any> }>): LazyEx
   lazy(loader) as LazyExoticComponent<ComponentType<any>>;
 
 export const LazyEventModal = lazyAny(() => import("../components/modals/EventModal"));
-export const LazySettingsModal = lazyAny(
-  () => import("../components/modals/SettingsModal")
-);
 export const LazyNotificationPanel = lazyAny(
   () => import("../components/NotificationCenter")
 );
@@ -21,16 +18,11 @@ export const LazyWhiteboard = lazyAny(() => import("../components/editor/Whitebo
  * Loading fallback component
  */
 export const LoadingFallback = () => (
-  <div
-    style={{
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      padding: "20px",
-      color: "#9ca3af",
-    }}
-  >
-    Loading...
+  <div className="flex items-center justify-center p-5 text-sm text-slate-400">
+    <div className="flex items-center gap-2">
+      <div className="inline-block w-4 h-4 border-2 border-slate-700 border-t-indigo-500 rounded-full animate-spin" />
+      <span>Loading...</span>
+    </div>
   </div>
 );
 

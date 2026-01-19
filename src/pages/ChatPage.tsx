@@ -52,7 +52,6 @@ const ChatPage = () => {
   }, [selectedChannel, updateChannelUnread]);
 
   const directMessages: DirectMessage[] = useMemo(() => {
-    // Dedupe theo username và ưu tiên bản ghi đang online để DM đúng user hiện tại
     const dmMap = new Map<string, DirectMessage & { status?: "online" | "offline" }>();
 
     users
@@ -69,9 +68,6 @@ const ChatPage = () => {
             status,
           });
         } else {
-          // Nếu đã có user cùng username:
-          // - Nếu bản cũ offline và bản mới online -> thay bằng online
-          // - Nếu cả hai online, giữ lần đầu (tránh nhảy userId liên tục)
           if (existing.status === "offline" && status === "online") {
             dmMap.set(u.username, {
               userId: u.userId,
@@ -106,8 +102,6 @@ const ChatPage = () => {
   const currentDMUser = directMessages?.find((dm) => dm.userId === selectedDM) || null;
 
   const displayMessages = useMemo(() => {
-    console.log("Filtering messages. activeTab:", activeTab, "selectedChannel:", selectedChannel, "total messages:", messages.length);
-    
     if (activeTab === "dm" && selectedDM) {
       return messages.filter((msg) => {
         if (msg.type !== "dm") return false;
@@ -119,29 +113,14 @@ const ChatPage = () => {
       });
     }
     if (activeTab === "global" && selectedChannel) {
-      // Filter messages by channelId
-      const filtered = messages.filter((msg) => {
-        const matches = msg.type === "global" && msg.channelId === selectedChannel;
-        if (!matches) {
-          console.log("Message filtered out:", {
-            id: msg.id,
-            type: msg.type,
-            channelId: msg.channelId,
-            selectedChannel,
-            username: msg.username,
-            message: msg.message?.substring(0, 20) || ""
-          });
-        }
-        return matches;
+      return messages.filter((msg) => {
+        return msg.type === "global" && msg.channelId === selectedChannel;
       });
-      console.log("Filtered messages for channel", selectedChannel, ":", filtered.length);
-      return filtered;
     }
     return messages;
   }, [messages, activeTab, selectedDM, currentUser, selectedChannel]);
 
   const handleSendMessage = (content: string, replyToId?: string) => {
-    // Send message with channelId for global messages
     if (activeTab === "global" && selectedChannel) {
       sendMessage(content, selectedChannel, replyToId);
     } else {
@@ -149,27 +128,23 @@ const ChatPage = () => {
     }
   };
 
-  // Prepare users cho UserList: gộp 1 bản duy nhất theo username, ưu tiên bản đang online
   const usersForList = useMemo(() => {
     const byUsername = new Map<
       string,
       (typeof users)[0] | (typeof currentUser) | null | undefined
     >();
 
-    // Add all socket users (online/offline)
     users.forEach((u) => {
       if (!u) return;
       const existing = byUsername.get(u.username);
       const status = (u as any).status || "online";
       const existingStatus = (existing as any)?.status || "offline";
 
-      // Ưu tiên online, nếu chưa có thì thêm, nếu đã có offline mà bản mới online thì thay
       if (!existing || (existingStatus === "offline" && status === "online")) {
         byUsername.set(u.username, u);
       }
     });
 
-    // Ensure currentUser present và online
     if (currentUser) {
       const existing = byUsername.get(currentUser.username);
       const existingStatus = (existing as any)?.status || "offline";
@@ -182,7 +157,6 @@ const ChatPage = () => {
       (u): u is NonNullable<typeof u> => !!u
     );
 
-    // Sort: currentUser first, sau đó online > offline, rồi alpha
     const sorted = merged.sort((a, b) => {
       if (a.userId === currentUser?.userId) return -1;
       if (b.userId === currentUser?.userId) return 1;
@@ -205,57 +179,55 @@ const ChatPage = () => {
   }, [users, currentUser, currentVoiceChannel]);
 
   return (
-    <div className="flex-1 flex h-screen bg-white dark:bg-[#36393f] overflow-hidden relative">
-      {/* Theme Toggle Button */}
-      <button
-        className="fixed top-4 right-4 w-12 h-12 rounded-full bg-gray-100 dark:bg-[#40444b] border border-gray-300 dark:border-[#202225] cursor-pointer text-2xl flex items-center justify-center z-[1000] shadow-[0_2px_8px_rgba(0,0,0,0.1)] dark:shadow-[0_2px_8px_rgba(0,0,0,0.3)] transition-all hover:bg-gray-200 dark:hover:bg-[#3c3f44] hover:scale-105 hover:shadow-[0_4px_12px_rgba(0,0,0,0.15)] dark:hover:shadow-[0_4px_12px_rgba(0,0,0,0.4)]"
-        onClick={toggleTheme}
-        title={theme === "light" ? "Chuyển sang chế độ tối" : "Chuyển sang chế độ sáng"}
-      >
-        {theme === "light" ? "🌙" : "☀️"}
-      </button>
+    <div className="flex-1 flex h-screen bg-[#0f0e13] font-sans text-slate-100 overflow-hidden relative selection:bg-violet-500/30">
+      <div className="flex-1 flex overflow-hidden relative max-w-[1920px] mx-auto w-full shadow-2xl">
+        
+        {/* Navigation & Channels */}
+        <div className="flex flex-row w-[320px] flex-shrink-0 z-10 glass-panel border-r-0 rounded-r-2xl my-2 ml-2 overflow-hidden">
+            {/* Server List - Vertical Slim */}
+            <ServerList
+            currentServerId="default"
+            onServerSelect={(id: string) => console.log("Server selected:", id)}
+            />
+            
+            {/* Channel List */}
+            <ChannelList
+            className={mobileMenuOpen ? "open" : ""}
+            serverName="My Virtual Office"
+            channels={channels || []}
+            voiceChannels={voiceChannels || []}
+            selectedChannelId={selectedChannel}
+            currentVoiceChannelId={currentVoiceChannel}
+            onChannelSelect={(id: string) => {
+                setSelectedChannel(id);
+                setSelectedDM(null);
+                setActiveTab("global");
+                setMobileMenuOpen(false);
+            }}
+            onVoiceChannelJoin={(id: string) => {
+                if (currentVoiceChannel === id) {
+                leaveVoiceChannel();
+                } else {
+                joinVoiceChannel(id);
+                }
+            }}
+            onCreateChannel={(type: "text" | "voice") => {
+                setCreateChannelType(type);
+                setShowCreateChannelModal(true);
+            }}
+            currentUser={currentUser ? {
+                userId: currentUser.userId,
+                username: currentUser.username,
+                avatar: currentUser.avatar,
+            } : undefined}
+            />
+        </div>
 
-      <div className="flex-1 flex overflow-hidden relative">
-        {/* Server List */}
-        <ServerList
-          currentServerId="default"
-          onServerSelect={(id: string) => console.log("Server selected:", id)}
-        />
-
-        {/* Channel List */}
-        <ChannelList
-          className={mobileMenuOpen ? "open" : ""}
-          serverName="My Virtual Office"
-          channels={channels || []}
-          voiceChannels={voiceChannels || []}
-          selectedChannelId={selectedChannel}
-          currentVoiceChannelId={currentVoiceChannel}
-          onChannelSelect={(id: string) => {
-            setSelectedChannel(id);
-            setSelectedDM(null);
-            setActiveTab("global");
-            setMobileMenuOpen(false);
-          }}
-          onVoiceChannelJoin={(id: string) => {
-            if (currentVoiceChannel === id) {
-              leaveVoiceChannel();
-            } else {
-              joinVoiceChannel(id);
-            }
-          }}
-          onCreateChannel={(type: "text" | "voice") => {
-            setCreateChannelType(type);
-            setShowCreateChannelModal(true);
-          }}
-          currentUser={currentUser ? {
-            userId: currentUser.userId,
-            username: currentUser.username,
-            avatar: currentUser.avatar,
-          } : undefined}
-        />
-
-        {/* Chat Area - Always visible, can be used while in voice channel */}
-        <div className={`flex-1 flex flex-col min-w-0 transition-[margin-right] duration-300 ${currentVoiceChannel ? "mr-[400px]" : ""}`}>
+        {/* Chat Area - Main Content */}
+        <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${currentVoiceChannel ? "mr-[380px]" : "mr-2"} my-2 mx-2 bg-[#1a1823]/80 backdrop-blur-md rounded-2xl border border-white/5 shadow-2xl overflow-hidden relative`}>
+           {/* Background Mesh Gradient */}
+           <div className="absolute inset-0 bg-gradient-to-br from-violet-900/10 via-transparent to-fuchsia-900/5 pointer-events-none" />
+          
           <ChatArea
             channelName={
               activeTab === "dm" && currentDMUser
@@ -276,7 +248,6 @@ const ChatPage = () => {
             }))}
             currentUserId={currentUser?.userId}
             onSendMessage={(content: string, attachments?: Array<{ filename: string; originalName: string; mimeType: string; size: number; url: string }>) => {
-              // Send message with channelId for global messages
               if (activeTab === "global" && selectedChannel) {
                 sendMessage(content, selectedChannel, undefined, attachments);
               } else {
@@ -284,7 +255,6 @@ const ChatPage = () => {
               }
             }}
             onReply={(messageId: string, content: string) => {
-              // Reply with messageId
               handleSendMessage(content, messageId);
             }}
             onReact={reactToMessage}
@@ -292,15 +262,15 @@ const ChatPage = () => {
             onDelete={deleteMessage}
             inputPlaceholder={
               activeTab === "dm" && currentDMUser
-                ? `Nhắn @${currentDMUser.username}`
-                : `Nhắn #${selectedChannel || "general"}`
+                ? `Message @${currentDMUser.username}`
+                : `Message #${selectedChannel || "general"}`
             }
           />
         </div>
 
-        {/* Voice Channel View - Floating overlay when active */}
+        {/* Voice Channel View - Floating Sidebar */}
         {currentVoiceChannel && (
-          <div className="fixed top-0 right-0 w-[400px] h-screen bg-[#36393f] dark:bg-[#36393f] border-l border-[#202225] dark:border-[#202225] z-[100] flex flex-col shadow-[-4px_0_12px_rgba(0,0,0,0.2)]">
+          <div className="absolute top-2 right-2 bottom-2 w-[360px] bg-[#13111c]/95 backdrop-blur-2xl rounded-2xl border border-white/10 z-20 flex flex-col shadow-2xl animate-slideLeft">
             <VoiceChannelView
               channelId={currentVoiceChannel}
               channelName={
@@ -316,20 +286,8 @@ const ChatPage = () => {
           </div>
         )}
 
-        {/* User List */}
-        <UserList
-          className={mobileUserListOpen ? "open" : ""}
-          users={usersForList}
-          currentUserId={currentUser?.userId}
-          onUserClick={(userId: string) => {
-            setSelectedDM(userId);
-            setSelectedChannel("");
-            setActiveTab("dm");
-            setMobileUserListOpen(false);
-          }}
-        />
-
       </div>
+      
       <InviteModal
         isOpen={showInviteModal}
         onClose={() => setShowInviteModal(false)}

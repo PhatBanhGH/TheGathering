@@ -316,20 +316,23 @@ const VoiceChannelView = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#36393f] text-[#dcddde] overflow-hidden">
-      <div className="flex items-center justify-between px-6 py-4 border-b border-[#202225] bg-[#2f3136]">
+    <div className="flex flex-col h-full bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100 overflow-hidden">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800/50 bg-slate-950/80 backdrop-blur-sm">
         <div className="flex items-center gap-3">
           <span className="text-xl">🔊</span>
-          <h2 className="text-base font-semibold m-0 text-[#dcddde]">{channelName}</h2>
-          <span className="text-sm text-[#72767d]">{voiceUsers.length} người</span>
+          <h2 className="text-base font-semibold m-0 text-slate-100">{channelName}</h2>
+          <span className="text-sm text-slate-400">{voiceUsers.length} người</span>
         </div>
-        <button className="px-4 py-2 bg-[#f04747] text-white border-none rounded cursor-pointer text-sm font-medium transition-all duration-200 hover:bg-[#d84040] hover:-translate-y-px" onClick={onLeave}>
+        <button
+          className="px-4 py-2 bg-red-500/10 text-red-300 border border-red-500/20 rounded-xl cursor-pointer text-sm font-medium transition-all duration-200 hover:bg-red-500/15 hover:text-red-200 hover:-translate-y-px active:translate-y-0"
+          onClick={onLeave}
+        >
           Rời khỏi
         </button>
       </div>
 
       <div
-        className="flex-1 grid gap-4 p-6 overflow-y-auto align-content-start min-h-0 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-[#202225] [&::-webkit-scrollbar-thumb]:rounded [&::-webkit-scrollbar-thumb:hover]:bg-[#1a1c1f]"
+        className="flex-1 grid gap-4 p-6 overflow-y-auto align-content-start min-h-0 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-800/50 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb:hover]:bg-slate-700/50"
         style={{
           gridTemplateColumns: `repeat(${getGridColumns(
             voiceUsers.length
@@ -342,10 +345,9 @@ const VoiceChannelView = ({
           return (
             <div
               key={user.userId}
-              className={`relative aspect-video rounded-lg overflow-hidden bg-[#40444b] border-2 border-transparent transition-all duration-200 hover:border-[#5865f2] hover:scale-[1.02] ${
-                isCurrentUser ? "border-[#5865f2] shadow-[0_0_0_2px_rgba(88,101,242,0.3)]" : ""
-              } ${user.isSpeaking ? "shadow-[0_0_0_3px_#43b581] border-[#43b581]" : ""}`}
-              style={user.isSpeaking ? { animation: 'speakingPulse 1.5s ease-in-out infinite' } : {}}
+              className={`relative aspect-video rounded-xl overflow-hidden bg-slate-900/60 border border-slate-800/60 transition-all duration-200 hover:border-indigo-500/40 hover:scale-[1.02] ${
+                isCurrentUser ? "border-indigo-500/50 shadow-[0_0_0_2px_rgba(99,102,241,0.2)]" : ""
+              } ${user.isSpeaking ? "border-indigo-400/60 shadow-[0_0_0_3px_rgba(99,102,241,0.25)] animate-[speakingPulse_1.5s_ease-in-out_infinite]" : ""}`}
             >
               <div className="relative w-full h-full flex items-center justify-center">
                 {/* Luôn render video element nếu có stream, để video có thể hiển thị ngay khi track enabled */}
@@ -379,16 +381,16 @@ const VoiceChannelView = ({
                         </div>
                         <div className="absolute bottom-1/2 left-1/2 -translate-x-1/2 translate-y-1/2 flex flex-col items-center gap-2 text-center px-4 z-20">
                           <span className="text-[32px] opacity-70">📷</span>
-                          <span className="text-sm text-[#72767d] font-medium">Camera đang được sử dụng</span>
+                          <span className="text-sm text-slate-300 font-medium">Camera đang được sử dụng</span>
                           {cameraOwner && (
-                            <span className="text-xs text-[#72767d] opacity-80">bởi tab khác</span>
+                            <span className="text-xs text-slate-400 opacity-80">bởi tab khác</span>
                           )}
                         </div>
                       </>
                     ) : (
                       <>
-                        <div className="absolute w-full h-full flex items-center justify-center bg-[#40444b] z-0">
-                          <div className="text-[#72767d] text-sm font-medium">Đang kết nối...</div>
+                        <div className="absolute w-full h-full flex items-center justify-center bg-slate-900/80 z-0">
+                          <div className="text-slate-400 text-sm font-medium">Đang kết nối...</div>
                         </div>
                         {/* Avatar khi chưa có stream */}
                         <div
@@ -419,14 +421,14 @@ const VoiceChannelView = ({
 
       {/* Error Message */}
       {mediaError && (
-        <div className="flex items-center justify-between gap-3 px-6 py-3 bg-[rgba(240,71,71,0.1)] border-l-4 border-[#f04747] mx-6 mt-4 rounded">
+        <div className="flex items-center justify-between gap-3 px-6 py-3 bg-red-500/10 border border-red-500/20 mx-6 mt-4 rounded-xl">
           <div className="flex items-center gap-2 flex-1">
             <span className="text-lg shrink-0">⚠️</span>
-            <span className="text-sm text-[#f04747] leading-relaxed">{mediaError}</span>
+            <span className="text-sm text-red-300 leading-relaxed">{mediaError}</span>
           </div>
           {!mediaError.includes("từ chối") && !mediaError.includes("Không tìm thấy") && (
             <button
-              className="px-3 py-1.5 bg-[#f04747] text-white border-none rounded cursor-pointer text-[13px] font-medium transition-all duration-200 whitespace-nowrap hover:bg-[#d84040] hover:-translate-y-px"
+              className="px-3 py-1.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white border-none rounded-xl cursor-pointer text-[13px] font-medium transition-all duration-200 whitespace-nowrap hover:from-indigo-500 hover:to-violet-500 hover:-translate-y-px active:translate-y-0"
               onClick={() => {
                 startMedia(false);
               }}
@@ -438,11 +440,15 @@ const VoiceChannelView = ({
       )}
 
       {/* Control Bar */}
-      <div className="flex items-center justify-between px-6 py-4 bg-[#2f3136] border-t border-[#202225] gap-4">
+      <div className="flex items-center justify-between px-6 py-4 bg-slate-950/80 backdrop-blur-sm border-t border-slate-800/50 gap-4">
         <div className="flex items-center gap-2">
           {/* Nút Toggle Video */}
           <button
-            className={`flex items-center justify-center gap-2 px-4 py-2.5 bg-[#40444b] border-none rounded text-[#dcddde] cursor-pointer text-sm font-medium transition-all duration-200 min-w-[44px] h-11 hover:bg-[#3c3f44] hover:-translate-y-px ${isVideoEnabled ? "bg-[#5865f2] text-white hover:bg-[#4752c4]" : ""}`}
+            className={`flex items-center justify-center gap-2 px-4 py-2.5 border border-slate-800 rounded-xl cursor-pointer text-sm font-medium transition-all duration-200 min-w-[44px] h-11 hover:-translate-y-px active:translate-y-0 ${
+              isVideoEnabled
+                ? "bg-indigo-600/20 text-indigo-200 border-indigo-500/30 hover:bg-indigo-600/25"
+                : "bg-slate-900/60 text-slate-300 hover:bg-slate-800/60"
+            }`}
             onClick={toggleVideo}
             title={isVideoEnabled ? "Tắt camera" : "Bật camera"}
           >
@@ -469,8 +475,10 @@ const VoiceChannelView = ({
 
           {/* Nút Toggle Mic */}
           <button
-            className={`flex items-center justify-center gap-2 px-4 py-2.5 border-none rounded text-[#dcddde] cursor-pointer text-sm font-medium transition-all duration-200 min-w-[44px] h-11 hover:-translate-y-px ${
-              isAudioEnabled ? "bg-[#5865f2] text-white hover:bg-[#4752c4]" : "bg-[#f04747] text-white hover:bg-[#d84040]"
+            className={`flex items-center justify-center gap-2 px-4 py-2.5 border border-slate-800 rounded-xl cursor-pointer text-sm font-medium transition-all duration-200 min-w-[44px] h-11 hover:-translate-y-px active:translate-y-0 ${
+              isAudioEnabled
+                ? "bg-indigo-600/20 text-indigo-200 border-indigo-500/30 hover:bg-indigo-600/25"
+                : "bg-slate-900/60 text-slate-300 hover:bg-slate-800/60"
             }`}
             onClick={toggleAudio}
             title={isAudioEnabled ? "Tắt mic" : "Bật mic"}
@@ -499,7 +507,10 @@ const VoiceChannelView = ({
         </div>
 
         <div className="flex-1 flex justify-center">
-          <button className="flex items-center justify-center gap-2 px-5 py-2.5 bg-[#f04747] text-white border-none rounded cursor-pointer text-sm font-medium transition-all duration-200 min-w-[44px] h-11 hover:bg-[#d84040]" onClick={onLeave}>
+          <button
+            className="flex items-center justify-center gap-2 px-5 py-2.5 bg-red-500/10 text-red-300 border border-red-500/20 rounded-xl cursor-pointer text-sm font-medium transition-all duration-200 min-w-[44px] h-11 hover:bg-red-500/15 hover:text-red-200"
+            onClick={onLeave}
+          >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
               <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
             </svg>
@@ -507,13 +518,7 @@ const VoiceChannelView = ({
           </button>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button className="flex items-center justify-center gap-2 px-4 py-2.5 bg-[#40444b] border-none rounded text-[#dcddde] cursor-pointer text-sm font-medium transition-all duration-200 min-w-[44px] h-11 hover:bg-[#3c3f44] hover:-translate-y-px" title="Cài đặt">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" />
-            </svg>
-          </button>
-        </div>
+        <div className="flex items-center gap-2" />
       </div>
     </div>
   );

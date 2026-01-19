@@ -167,12 +167,9 @@ const MessageItem = ({
 
   return (
     <div
-      className={`flex gap-4 px-5 py-2 rounded-xl transition-all duration-200 relative group ${
-        isGrouped
-          ? "py-1"
-          : "py-2.5 border-l-[3px] border-l-transparent pl-[17px]"
-      } hover:bg-[#f8f9fa]/50 dark:hover:bg-[#32353b]/80 hover:translate-x-1 hover:shadow-sm`}
-      style={{ animation: "messageSlideIn 0.3s ease-out" }}
+      className={`flex gap-4 px-5 py-2 rounded-xl transition-all duration-300 relative group ${
+        isGrouped ? "py-1" : "py-3"
+      } hover:bg-slate-800/30 hover:shadow-sm`}
       data-message-id={message.id}
       data-user-id={message.userId}
       onMouseEnter={() => setShowActions(true)}
@@ -181,7 +178,7 @@ const MessageItem = ({
       {!isGrouped && (
         <div className="relative shrink-0 w-11 h-11">
           <div
-            className="w-11 h-11 rounded-full text-white flex items-center justify-center font-bold text-base cursor-pointer transition-all duration-300 border-2 border-white/30 shadow-[0_4px_12px_rgba(0,0,0,0.2)] relative hover:scale-110 hover:shadow-[0_6px_16px_rgba(0,0,0,0.3)] hover:ring-2 hover:ring-indigo-500/30 active:scale-95 after:content-[''] after:absolute after:-bottom-0.5 after:-right-0.5 after:w-4 after:h-4 after:rounded-full after:bg-gradient-to-br after:from-green-400 after:to-green-500 after:border-[3px] after:border-[#36393f] dark:after:border-white after:shadow-[0_0_0_2px_rgba(0,0,0,0.1),0_0_8px_rgba(34,197,94,0.4)] after:z-10"
+            className="w-11 h-11 rounded-full text-white flex items-center justify-center font-bold text-base cursor-pointer transition-all duration-300 border-2 border-white/20 shadow-[0_4px_12px_rgba(0,0,0,0.2)] relative hover:scale-110 hover:shadow-[0_6px_16px_rgba(0,0,0,0.3)] hover:ring-2 hover:ring-indigo-500/30 active:scale-95 after:content-[''] after:absolute after:-bottom-0.5 after:-right-0.5 after:w-4 after:h-4 after:rounded-full after:bg-gradient-to-br after:from-emerald-400 after:to-emerald-500 after:border-[3px] after:border-slate-950 after:shadow-[0_0_0_2px_rgba(0,0,0,0.1),0_0_8px_rgba(34,197,94,0.4)] after:z-10"
             style={{ backgroundColor: avatarColor }}
             title={message.username}
           >
@@ -199,11 +196,11 @@ const MessageItem = ({
             >
               {message.username}
             </span>
-            <span className="text-xs text-[#747f8d] font-medium">
+            <span className="text-xs text-slate-500 font-medium">
               {formatTime(message.timestamp)}
               {message.editedAt && (
                 <span
-                  className="text-[11px] italic opacity-70 ml-1"
+                  className="text-[11px] italic opacity-70 ml-1.5"
                   title="Đã chỉnh sửa"
                 >
                   (đã chỉnh sửa)
@@ -213,18 +210,30 @@ const MessageItem = ({
           </div>
         ) : (
           // Show small timestamp for grouped messages (Discord-like)
-          <span className="absolute -left-[60px] top-0 text-[11px] text-[#72767d] opacity-0 transition-opacity duration-200 whitespace-nowrap w-[50px] text-right group-hover:opacity-100">
+          <span className="absolute -left-[60px] top-0 text-[11px] text-slate-500 opacity-0 transition-opacity duration-300 whitespace-nowrap w-[50px] text-right group-hover:opacity-100">
             {formatTime(message.timestamp)}
           </span>
         )}
 
         {message.replyTo && (
-          <div className="flex items-center gap-2 px-3 py-2 mb-2 border-l-[3px] border-l-indigo-500 bg-gradient-to-r from-indigo-50/50 to-purple-50/30 dark:from-[#40444b] dark:to-[#3c3f44] rounded-lg text-sm text-[#4e5058] shadow-sm">
-            <span className="text-base">↩</span>
-            <span className="font-bold text-indigo-600 dark:text-indigo-400">
+          <div className="flex items-center gap-2 px-3 py-2 mb-2 border-l-[3px] border-l-indigo-500 bg-gradient-to-r from-indigo-500/10 to-violet-500/10 rounded-xl text-sm text-slate-400 shadow-sm">
+            <svg
+              className="w-4 h-4 text-indigo-400"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
+              />
+            </svg>
+            <span className="font-semibold text-indigo-400">
               {message.replyTo.username}
             </span>
-            <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-[#72767d]">
+            <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-slate-500">
               {message.replyTo.message}
             </span>
           </div>
@@ -238,16 +247,16 @@ const MessageItem = ({
               onChange={(e) => setEditContent(e.target.value)}
               onKeyDown={handleKeyPress}
               onBlur={handleEdit}
-              className="w-full px-2 py-2 bg-[#f8f9fa] dark:bg-[#40444b] border border-[#5865f2] rounded text-base text-[#060607] dark:text-[#dcddde] font-inherit"
+              className="w-full px-3 py-2.5 bg-slate-900/60 border border-indigo-500/40 rounded-xl text-sm text-slate-100 outline-none focus:ring-2 focus:ring-indigo-500/20"
               autoFocus
             />
-            <span className="text-[11px] text-[#747f8d] italic">
+            <span className="text-[11px] text-slate-500 italic">
               Nhấn Enter để lưu, Esc để hủy
             </span>
           </div>
         ) : (
           <>
-            <div className="text-[15px] leading-relaxed text-[#060607] dark:text-[#dcddde] wrap-break-word whitespace-pre-wrap tracking-normal font-medium [&_strong]:font-bold [&_em]:italic [&_.inline-code]:bg-[#f8f9fa] dark:[&_.inline-code]:bg-[#40444b] [&_.inline-code]:px-1.5 [&_.inline-code]:py-0.5 [&_.inline-code]:rounded-md [&_.inline-code]:font-mono [&_.inline-code]:text-sm [&_.inline-code]:text-indigo-600 dark:[&_.inline-code]:text-indigo-400 [&_.mention]:bg-gradient-to-r [&_.mention]:from-indigo-500 [&_.mention]:to-indigo-600 [&_.mention]:text-white [&_.mention]:px-2 [&_.mention]:py-0.5 [&_.mention]:rounded-md [&_.mention]:font-semibold [&_.mention]:cursor-pointer [&_.mention]:shadow-sm">
+            <div className="text-[15px] leading-relaxed text-slate-200 wrap-break-word whitespace-pre-wrap tracking-normal font-medium [&_strong]:font-bold [&_em]:italic [&_.inline-code]:bg-slate-800/60 [&_.inline-code]:px-1.5 [&_.inline-code]:py-0.5 [&_.inline-code]:rounded-md [&_.inline-code]:font-mono [&_.inline-code]:text-sm [&_.inline-code]:text-indigo-300 [&_.mention]:bg-gradient-to-r [&_.mention]:from-indigo-600 [&_.mention]:to-violet-600 [&_.mention]:text-white [&_.mention]:px-2 [&_.mention]:py-0.5 [&_.mention]:rounded-md [&_.mention]:font-semibold [&_.mention]:cursor-pointer [&_.mention]:shadow-sm">
               {formatMessage(message.message)}
             </div>
             {/* Attachments */}
@@ -276,14 +285,14 @@ const MessageItem = ({
                         href={att.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-3 px-3 py-3 bg-[#f8f9fa] dark:bg-[#40444b] rounded no-underline text-[#060607] dark:text-[#dcddde] transition-colors duration-200 hover:bg-[#f0f1f2] dark:hover:bg-[#3c3f44]"
+                        className="flex items-center gap-3 px-3 py-3 bg-slate-900/50 border border-slate-800 rounded-xl no-underline text-slate-200 transition-colors duration-200 hover:bg-slate-800/50 hover:border-indigo-500/30"
                       >
                         <span className="text-2xl shrink-0">📎</span>
                         <div className="flex-1 flex flex-col gap-1 min-w-0">
                           <span className="font-medium text-sm overflow-hidden text-ellipsis whitespace-nowrap">
                             {att.originalName}
                           </span>
-                          <span className="text-xs text-[#72767d]">
+                          <span className="text-xs text-slate-500">
                             {(att.size / 1024).toFixed(1)} KB
                           </span>
                         </div>
@@ -302,9 +311,9 @@ const MessageItem = ({
             {message.reactions.map((reaction, idx) => (
               <button
                 key={idx}
-                className={`flex items-center gap-1 px-2.5 py-1 bg-[#f8f9fa] dark:bg-[#40444b] border border-[#e3e5e8] dark:border-[#202225] rounded-xl cursor-pointer transition-all duration-200 text-sm relative overflow-hidden before:content-[''] before:absolute before:top-1/2 before:left-1/2 before:w-0 before:h-0 before:rounded-full before:bg-[rgba(88,101,242,0.2)] before:-translate-x-1/2 before:-translate-y-1/2 before:transition-all before:duration-300 hover:before:w-full hover:before:h-full hover:bg-[#f0f1f2] dark:hover:bg-[#3c3f44] hover:border-[#5865f2] hover:-translate-y-px hover:shadow-[0_2px_4px_rgba(88,101,242,0.2)] active:translate-y-0 active:scale-95 ${
+                className={`flex items-center gap-1 px-2.5 py-1 bg-slate-900/50 border border-slate-800 rounded-xl cursor-pointer transition-all duration-200 text-sm hover:bg-slate-800/50 hover:border-indigo-500/30 active:scale-95 ${
                   reaction.users.includes(currentUserId || "")
-                    ? "bg-[#5865f2] border-[#5865f2] text-white shadow-[0_2px_8px_rgba(88,101,242,0.4)]"
+                    ? "bg-indigo-600/20 border-indigo-500/40 text-slate-100 shadow-sm"
                     : ""
                 }`}
                 onClick={() => onReact?.(message.id, reaction.emoji)}
@@ -327,14 +336,11 @@ const MessageItem = ({
 
         {/* Action buttons (show on hover) */}
         {showActions && !isEditing && (
-          <div
-            className="flex items-center gap-1 mt-1.5 px-2 py-1.5 bg-[#f8f9fa] dark:bg-[#40444b] rounded-md shadow-[0_2px_4px_rgba(0,0,0,0.05)] dark:shadow-[0_2px_4px_rgba(0,0,0,0.2)]"
-            style={{ animation: "fadeIn 0.2s ease-out" }}
-          >
+          <div className="flex items-center gap-1 mt-2 px-2 py-1.5 bg-slate-900/70 border border-slate-800 rounded-xl shadow-lg animate-[fadeIn_0.2s_ease-out]">
             {commonReactions.map((emoji) => (
               <button
                 key={emoji}
-                className="px-2.5 py-1.5 bg-transparent border-none rounded-md cursor-pointer text-[13px] text-[#4e5058] dark:text-[#96989d] transition-all duration-200 flex items-center gap-1.5 font-medium relative after:content-[''] after:absolute after:bottom-0 after:left-1/2 after:w-0 after:h-0.5 after:bg-[#5865f2] after:-translate-x-1/2 after:transition-all after:duration-200 hover:after:w-4/5 hover:bg-[#f0f1f2] dark:hover:bg-[#3c3f44] hover:text-[#060607] dark:hover:text-[#dcddde] hover:-translate-y-px active:translate-y-0 active:scale-95"
+                className="px-2.5 py-1.5 bg-transparent border-none rounded-lg cursor-pointer text-[13px] text-slate-300 transition-all duration-200 flex items-center gap-1.5 font-medium hover:bg-slate-800 hover:text-slate-100 active:scale-95"
                 onClick={() => onReact?.(message.id, emoji)}
                 title={`Thêm ${emoji}`}
               >
@@ -343,7 +349,7 @@ const MessageItem = ({
             ))}
             {onReply && (
               <button
-                className="px-2.5 py-1.5 bg-transparent border-none rounded-md cursor-pointer text-[13px] text-[#4e5058] dark:text-[#96989d] transition-all duration-200 flex items-center gap-1.5 font-medium relative after:content-[''] after:absolute after:bottom-0 after:left-1/2 after:w-0 after:h-0.5 after:bg-[#5865f2] after:-translate-x-1/2 after:transition-all after:duration-200 hover:after:w-4/5 hover:bg-[#f0f1f2] dark:hover:bg-[#3c3f44] hover:text-[#060607] dark:hover:text-[#dcddde] hover:-translate-y-px active:translate-y-0 active:scale-95"
+                className="px-2.5 py-1.5 bg-transparent border-none rounded-lg cursor-pointer text-[13px] text-slate-300 transition-all duration-200 flex items-center gap-1.5 font-medium hover:bg-slate-800 hover:text-slate-100 active:scale-95"
                 onClick={() => onReply(message.id)}
                 title="Trả lời"
               >
@@ -352,7 +358,7 @@ const MessageItem = ({
             )}
             {isOwnMessage && onEdit && (
               <button
-                className="px-2.5 py-1.5 bg-transparent border-none rounded-md cursor-pointer text-[13px] text-[#4e5058] dark:text-[#96989d] transition-all duration-200 flex items-center gap-1.5 font-medium relative after:content-[''] after:absolute after:bottom-0 after:left-1/2 after:w-0 after:h-0.5 after:bg-[#5865f2] after:-translate-x-1/2 after:transition-all after:duration-200 hover:after:w-4/5 hover:bg-[#f0f1f2] dark:hover:bg-[#3c3f44] hover:text-[#060607] dark:hover:text-[#dcddde] hover:-translate-y-px active:translate-y-0 active:scale-95"
+                className="px-2.5 py-1.5 bg-transparent border-none rounded-lg cursor-pointer text-[13px] text-slate-300 transition-all duration-200 flex items-center gap-1.5 font-medium hover:bg-slate-800 hover:text-slate-100 active:scale-95"
                 onClick={() => setIsEditing(true)}
                 title="Chỉnh sửa"
               >
@@ -361,7 +367,7 @@ const MessageItem = ({
             )}
             {isOwnMessage && onDelete && (
               <button
-                className="px-2.5 py-1.5 bg-transparent border-none rounded-md cursor-pointer text-[13px] text-[#4e5058] dark:text-[#96989d] transition-all duration-200 flex items-center gap-1.5 font-medium relative after:content-[''] after:absolute after:bottom-0 after:left-1/2 after:w-0 after:h-0.5 after:bg-white after:-translate-x-1/2 after:transition-all after:duration-200 hover:after:w-4/5 hover:bg-[#f23f42] dark:hover:bg-[#f04747] hover:text-white hover:-translate-y-px active:translate-y-0 active:scale-95"
+                className="px-2.5 py-1.5 bg-transparent border-none rounded-lg cursor-pointer text-[13px] text-red-300 transition-all duration-200 flex items-center gap-1.5 font-medium hover:bg-red-500/15 hover:text-red-200 active:scale-95"
                 onClick={() => onDelete(message.id)}
                 title="Xóa"
               >

@@ -47,63 +47,50 @@ const ServerList = ({
       : [defaultServer];
 
   return (
-    <div className="w-[72px] bg-[#202225] flex flex-col items-center py-3 gap-2 overflow-y-auto [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar]:bg-transparent">
+    <div className="w-[72px] flex flex-col items-center py-3 gap-2 overflow-y-auto scrollbar-hide flex-shrink-0 bg-[#1E1F22]">
       {displayServers.map((server) => {
         const isActive = server.id === currentServerId;
         const isHovered = hoveredServerId === server.id;
 
         return (
-          <div
-            key={server.id}
-            className={`relative w-12 h-12 rounded-full bg-[#36393f] flex items-center justify-center cursor-pointer transition-all duration-200 mb-1 hover:bg-[#5865f2] hover:rounded-2xl ${
-              isActive ? "bg-[#5865f2] rounded-2xl" : ""
-            }`}
-            onClick={() => onServerSelect?.(server.id)}
-            onMouseEnter={() => setHoveredServerId(server.id)}
-            onMouseLeave={() => setHoveredServerId(null)}
-            title={server.name}
-          >
-            <div className="text-[22px] font-normal text-[#dcddde] select-none leading-none flex items-center justify-center w-full h-full">
-              {server.icon || server.name.charAt(0).toUpperCase()}
-            </div>
-            {server.unreadCount && server.unreadCount > 0 && (
-              <div
-                className={`absolute -top-1 -right-1 bg-[#f04747] text-white rounded-[10px] flex items-center justify-center text-[11px] font-bold px-1.5 border-2 border-[#202225] z-10 shadow-[0_2px_4px_rgba(240,71,71,0.3)] ${
-                  server.unreadCount <= 9
-                    ? "min-w-[18px] h-[18px] text-[10px] px-1"
-                    : "min-w-[20px] h-5"
-                }`}
-                style={{ animation: "pulse-badge 2s ease-in-out infinite" }}
-                data-count={
-                  server.unreadCount <= 9
-                    ? server.unreadCount.toString()
-                    : undefined
-                }
-              >
-                {server.unreadCount > 99 ? "99+" : server.unreadCount}
-              </div>
-            )}
-            {server.isOnline && !isActive && (
-              <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-[#43b581] rounded-full border-2 border-[#202225]" />
-            )}
-            {isHovered && !isActive && (
-              <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-1 h-0 bg-[#dcddde] rounded-r transition-all duration-200 hover:h-5" />
-            )}
-            {isActive && (
-              <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-1 h-10 bg-[#dcddde] rounded-r" />
-            )}
+          <div key={server.id} className="relative group flex items-center justify-center w-full">
+            {/* Pill Indicator */}
+             <div className={`absolute left-0 w-1 bg-white rounded-r transition-all duration-300 ${isActive ? 'h-10' : isHovered ? 'h-5' : 'h-2 opacity-0'}`} />
+             
+            <button
+              className={`relative w-12 h-12 flex items-center justify-center rounded-[24px] cursor-pointer transition-all duration-300 group-hover:rounded-[16px] ${
+                isActive 
+                  ? "bg-violet-500 text-white rounded-[16px]" 
+                  : "bg-[#313338] text-slate-400 hover:bg-violet-500 hover:text-white"
+              }`}
+              onClick={() => onServerSelect?.(server.id)}
+              onMouseEnter={() => setHoveredServerId(server.id)}
+              onMouseLeave={() => setHoveredServerId(null)}
+              title={server.name}
+            >
+              <span className="text-xl transform outline-none transition-transform duration-200">
+                 {server.icon || server.name.charAt(0).toUpperCase()}
+              </span>
+
+              {server.unreadCount && server.unreadCount > 0 && (
+                <div className="absolute -bottom-1 -right-1 min-w-[20px] h-5 bg-red-500 text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-[#1E1F22]">
+                  {server.unreadCount > 99 ? "99+" : server.unreadCount}
+                </div>
+              )}
+            </button>
           </div>
         );
       })}
+      
       {onAddServer && (
-        <div
-          className="relative w-12 h-12 rounded-full bg-[#36393f] flex items-center justify-center cursor-pointer transition-all duration-200 mb-1 hover:bg-[#43b581] hover:rounded-2xl"
-          onClick={onAddServer}
-          title="Add Server"
-        >
-          <div className="text-2xl text-[#43b581] hover:text-white flex items-center justify-center w-full h-full transition-colors duration-200">
-            +
-          </div>
+        <div className="group relative flex items-center justify-center w-full mt-2">
+           <button
+             className="w-12 h-12 flex items-center justify-center rounded-[24px] bg-[#313338] text-emerald-500 cursor-pointer transition-all duration-300 hover:bg-emerald-500 hover:text-white hover:rounded-[16px] overflow-hidden group-hover:bg-emerald-500"
+             onClick={onAddServer}
+             title="Add Server"
+           >
+             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+           </button>
         </div>
       )}
     </div>

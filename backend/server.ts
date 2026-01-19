@@ -248,17 +248,11 @@ app.use("/api/analytics", analyticsRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/search", searchRoutes);
 
-// 404 handler (must be before error handler)
-app.use(notFoundHandler);
-
-// Error handler (must be last)
-app.use(errorHandler);
-
 app.get("/api/health", (req: Request, res: Response) => {
   res.json({ status: "ok", message: "Server is running" });
 });
 
-// Room users endpoint - must be before errorHandler
+// Room users endpoint
 app.get("/api/rooms/:roomId/users", async (req: Request, res: Response) => {
   try {
     const { roomId } = req.params;
@@ -295,6 +289,39 @@ app.get("/api/rooms/:roomId/users", async (req: Request, res: Response) => {
     res.status(500).json({ message: "Failed to fetch room users" });
   }
 });
+
+// Room invite endpoint (alias for /api/spaces/:roomId/invite)
+app.post("/api/rooms/:roomId/invite", async (req: Request, res: Response) => {
+  try {
+    const { roomId } = req.params;
+    const room = await Room.findOne({ roomId });
+
+    if (!room) {
+      res.status(404).json({ message: "Room not found" });
+      return;
+    }
+
+    const inviteLink = `${
+      process.env.CLIENT_URL || "http://localhost:5173"
+    }/lobby?room=${roomId}`;
+
+    res.json({
+      inviteLink,
+      roomId: room.roomId,
+      roomName: room.name,
+      maxUsers: room.maxUsers,
+    });
+  } catch (error) {
+    console.error("Error generating invite link:", error);
+    res.status(500).json({ message: "Failed to generate invite link" });
+  }
+});
+
+// 404 handler (must be before error handler)
+app.use(notFoundHandler);
+
+// Error handler (must be last)
+app.use(errorHandler);
 
 // Error handling middleware is already imported and used above
 

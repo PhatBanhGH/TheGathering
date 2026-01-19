@@ -81,6 +81,8 @@ const NotificationProvider = ({ children }: { children: ReactNode }) => {
         // Token expired or invalid, clear notifications
         setNotifications([]);
         setUnreadCount(0);
+        // Stop further polling spam by clearing invalid token
+        localStorage.removeItem("token");
         // Don't redirect here as it might be called frequently
         // The user will be redirected when they try to perform an action
       } else if (response.status === 429) {

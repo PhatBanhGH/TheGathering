@@ -13,7 +13,7 @@ import {
   useChatGroups,
 } from "../hooks";
 
-export type ChatTab = "nearby" | "global" | "dm" | "group";
+export type ChatTab = "nearby" | "global" | "dm" | "group" | "users";
 
 export interface ChatMessage {
   id: string;
@@ -103,7 +103,7 @@ interface ChatContextType {
   updateChannelUnread: (channelId: string, count: number) => void;
   createChannel: (
     name: string,
-    type: "text" | "voice" | "forum",
+    type: "text" | "voice",
     description?: string,
     isPrivate?: boolean
   ) => void;

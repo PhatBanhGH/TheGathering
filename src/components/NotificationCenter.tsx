@@ -82,14 +82,14 @@ const NotificationCenter = () => {
       </button>
 
       {isOpen && (
-        <div className="absolute top-[calc(100%+8px)] right-0 w-[380px] max-h-[500px] bg-white border border-gray-300 rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.15)] z-[1000] flex flex-col overflow-hidden">
-          <div className="p-4 border-b border-gray-300 flex justify-between items-center bg-gray-50">
-            <h3 className="m-0 text-lg font-semibold text-gray-800">
+        <div className="absolute top-[calc(100%+8px)] left-0 md:left-auto md:right-0 w-[320px] md:w-[380px] max-h-[500px] bg-[#1a1823]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.5)] z-[1000] flex flex-col overflow-hidden animate-slideDown">
+          <div className="p-4 border-b border-white/10 flex justify-between items-center bg-white/[0.02]">
+            <h3 className="m-0 text-sm font-bold text-white font-display tracking-wide">
               Notifications
             </h3>
             {unreadCount > 0 && (
               <button
-                className="px-3 py-1.5 bg-transparent border border-gray-300 rounded-md text-xs font-medium text-gray-600 cursor-pointer transition-all hover:bg-gray-100 hover:border-indigo-600 hover:text-indigo-600"
+                className="px-3 py-1.5 bg-white/5 hover:bg-violet-600/20 hover:text-violet-300 border border-white/10 rounded-lg text-[10px] font-medium text-slate-400 cursor-pointer transition-all"
                 onClick={markAllAsRead}
                 title="Mark all as read"
               >
@@ -98,38 +98,39 @@ const NotificationCenter = () => {
             )}
           </div>
 
-          <div className="overflow-y-auto max-h-[400px] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-400 [&::-webkit-scrollbar-thumb]:rounded-sm [&::-webkit-scrollbar-thumb:hover]:bg-gray-500">
+          <div className="overflow-y-auto max-h-[400px] scrollbar-hide">
             {notifications.length === 0 ? (
-              <div className="py-10 px-5 text-center text-gray-600">
-                <p className="m-0 text-sm">No notifications</p>
+              <div className="py-12 px-5 text-center text-slate-500">
+                <div className="text-4xl mb-3 opacity-30">🔔</div>
+                <p className="m-0 text-xs font-medium">No notifications yet</p>
               </div>
             ) : (
               notifications.map((notification) => (
                 <div
                   key={notification._id}
-                  className={`flex gap-3 px-4 py-3 border-b border-gray-100 cursor-pointer transition-colors relative ${
+                  className={`flex gap-3 px-4 py-3 border-b border-white/5 cursor-pointer transition-all relative group ${
                     !notification.isRead
-                      ? "bg-blue-50 border-l-[3px] border-l-indigo-600 pl-[13px]"
-                      : "hover:bg-gray-50"
+                      ? "bg-violet-500/10 border-l-[3px] border-l-violet-500 pl-[13px]"
+                      : "hover:bg-white/5"
                   } last:border-b-0`}
                   onClick={() => handleNotificationClick(notification)}
                 >
-                  <div className="text-2xl shrink-0 w-8 h-8 flex items-center justify-center">
+                  <div className="text-xl shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-white/5 text-slate-300">
                     {getNotificationIcon(notification.type)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-semibold text-gray-800 mb-1 leading-tight">
+                    <div className={`text-sm font-semibold mb-1 leading-tight ${!notification.isRead ? 'text-white' : 'text-slate-300'}`}>
                       {notification.title}
                     </div>
-                    <div className="text-[13px] text-gray-600 mb-1.5 leading-tight line-clamp-2">
+                    <div className="text-[12px] text-slate-400 mb-1.5 leading-tight line-clamp-2 font-light">
                       {notification.message}
                     </div>
-                    <div className="text-[11px] text-gray-400">
+                    <div className="text-[10px] text-slate-500 font-medium tracking-wide">
                       {formatRelativeTime(notification.createdAt)}
                     </div>
                   </div>
                   <button
-                    className="absolute top-2 right-2 w-6 h-6 rounded-full bg-transparent border-none text-gray-400 text-sm cursor-pointer flex items-center justify-center opacity-0 transition-all hover:bg-red-50 hover:text-red-500 group-hover:opacity-100"
+                    className="absolute top-2 right-2 w-6 h-6 rounded-full bg-white/5 hover:bg-red-500/20 hover:text-red-400 border border-transparent hover:border-red-500/30 text-slate-500 text-xs cursor-pointer flex items-center justify-center opacity-0 transition-all group-hover:opacity-100"
                     onClick={(e) => {
                       e.stopPropagation();
                       deleteNotification(notification._id);

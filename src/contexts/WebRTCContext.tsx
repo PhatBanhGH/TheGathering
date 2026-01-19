@@ -166,7 +166,7 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
       }
 
       // Kiểm tra trạng thái của video track
-      if (videoTrack.readyState === 'ended') {
+      if ((videoTrack as any).readyState === 'ended') {
         throw new Error("Video track đã bị kết thúc");
       }
 
@@ -174,7 +174,7 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
       await new Promise(resolve => setTimeout(resolve, 100));
 
       // Kiểm tra lại sau khi đợi
-      if (videoTrack.readyState === 'ended') {
+      if ((videoTrack as any).readyState === 'ended') {
         throw new Error("Video track bị kết thúc sau khi khởi tạo");
       }
 
@@ -220,7 +220,7 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
       // Check sau 1 giây xem track có bị ended không
       setTimeout(() => {
         videoTrack.removeEventListener('ended', trackEndHandler);
-        if (!trackEndedEarly && videoTrack.readyState === 'ended') {
+        if (!trackEndedEarly && (videoTrack as any).readyState === 'ended') {
           console.error('❌ Video track ended within 1 second - camera was taken by another tab');
           cameraManager.releaseCameraLock();
           stopMedia();

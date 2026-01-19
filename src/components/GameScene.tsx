@@ -368,10 +368,7 @@ const GameScene = () => {
         </button>
       </div>
 
-      <NotificationPanel
-        isOpen={showNotifications}
-        onClose={() => setShowNotifications(false)}
-      />
+
     </div>
   );
 };

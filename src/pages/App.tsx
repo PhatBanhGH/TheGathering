@@ -21,7 +21,7 @@ import {
   NotificationProvider,
 } from "../contexts";
 import ErrorBoundary from "../components/ErrorBoundary";
-import { SearchModal } from "../components/modals";
+import { SearchModal } from "../components/modals"; // Ensure this is correct
 import { analytics } from "../utils/analytics";
 
 const AppPage = () => {
@@ -33,7 +33,7 @@ const AppPage = () => {
   const location = useLocation();
 
   useEffect(() => {
-    // Check authentication - ưu tiên dữ liệu từ Lobby
+    // Check authentication - prioritize Lobby data
     const savedName = localStorage.getItem("userName");
     if (savedName) {
       setUsername(savedName);
@@ -94,9 +94,10 @@ const AppPage = () => {
 
   if (!isJoined || !username) {
     return (
-      <div className="flex justify-center items-center w-screen h-screen bg-gradient-to-br from-indigo-500 to-purple-600">
-        <div className="bg-white p-8 rounded-xl shadow-[0_10px_40px_rgba(0,0,0,0.2)] min-w-[400px]">
-          <h1 className="text-center mb-8 text-gray-800">Loading...</h1>
+      <div className="flex justify-center items-center w-screen h-screen bg-[#0f0e13] text-white">
+        <div className="flex flex-col items-center p-8 rounded-2xl bg-white/5 backdrop-blur-lg border border-white/10 shadow-2xl">
+          <div className="w-12 h-12 border-2 border-violet-500 border-t-transparent rounded-full animate-spin mb-4 shadow-[0_0_15px_rgba(139,92,246,0.5)]"></div>
+          <h1 className="text-lg font-outfit tracking-wide font-medium text-slate-200">Initializing...</h1>
         </div>
       </div>
     );
@@ -115,11 +116,17 @@ const AppPage = () => {
                 <ObjectProvider>
                   <EventProvider>
                     <NotificationProvider>
-                      <div className="flex w-screen h-screen overflow-hidden bg-gray-50 dark:bg-[#1a1a1a]">
+                      <div className="flex w-screen h-screen overflow-hidden bg-[#0f0e13] text-slate-100 font-sans selection:bg-violet-500/30">
+                        {/* Global Background Mesh */}
+                        <div className="fixed inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(120,0,255,0.1),rgba(0,0,0,0)_50%)] pointer-events-none" />
+                        
                         <Suspense
                           fallback={
-                            <div className="flex items-center justify-center w-full h-full">
-                              <div className="text-lg text-gray-600 dark:text-gray-400">Loading...</div>
+                            <div className="flex items-center justify-center w-full h-full bg-[#0f0e13]">
+                             <div className="flex flex-col items-center">
+                                <div className="w-10 h-10 border-2 border-fuchsia-500 border-t-transparent rounded-full animate-spin mb-3"></div>
+                                <div className="text-xs text-slate-500 uppercase tracking-widest">Loading Interface</div>
+                              </div>
                             </div>
                           }
                         >
@@ -127,8 +134,7 @@ const AppPage = () => {
                           {isChatPage ? (
                             <>
                               <ChatPage />
-                              <VideoChat /> {/* Allow video chat on ChatPage */}
-                              {/* ControlBar integrated into ChannelList footer */}
+                              <VideoChat />
                             </>
                           ) : isProfilePage ? (
                             <>
@@ -136,24 +142,24 @@ const AppPage = () => {
                             </>
                           ) : (
                             <>
-                              <div className="flex-1 relative flex flex-col overflow-hidden bg-gray-50 dark:bg-[#1a1a1a]">
+                              <div className="flex-1 relative flex flex-col overflow-hidden bg-[#0a0a0c] m-2 rounded-2xl border border-white/5 shadow-2xl">
                                 <GameScene />
                                 <ControlBar />
                               </div>
                               <VideoChat />
                               <Chat />
-                              {/* Reactions sidebar removed */}
                               <MapLayers />
                             </>
                           )}
                         </Suspense>
                       </div>
+                      
                       {showSearchModal && (
-                        <Suspense fallback={<div>Loading Search...</div>}>
-                          <LazySearchModal
+                        <SearchModal
+                            isOpen={showSearchModal}
                             onClose={() => setShowSearchModal(false)}
-                          />
-                        </Suspense>
+                            roomId={roomId}
+                        />
                       )}
                     </NotificationProvider>
                   </EventProvider>

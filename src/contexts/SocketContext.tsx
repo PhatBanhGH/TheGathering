@@ -114,10 +114,10 @@ export const SocketProvider = ({
           // Set initial users list (excluding current user)
           setUsers(
             allRoomMembers
-              .filter((member) => member.userId !== currentUser?.userId)
+              .filter((member) => member.userId !== userId)
               .map((member) => ({
                 ...member,
-                status: "offline" as const,
+                status: (member.status || "offline") as "online" | "offline",
               }))
           );
         } else if (response.status === 404) {
@@ -147,45 +147,37 @@ export const SocketProvider = ({
       console.log("📥 Received room-users event:", roomUsers.length, "users");
       console.log("📥 Users from server:", roomUsers.map(u => ({ userId: u.userId, username: u.username, status: (u as any).status })));
       
-      // Update users list with all users in room (including offline) - REALTIME
-      // IMPORTANT: Server is the source of truth - only keep users that are in the room-users list
+      // IMPORTANT:
+      // Backend currently emits "room-users" WITHOUT the current user (to reduce noise).
+      // That means in a fresh room with only you, roomUsers can be [].
+      // So we MUST merge this payload into existing members (from API) instead of wiping state.
       setUsers((prev) => {
         const currentUserId = currentUserIdRef.current;
-        
-        // Create a Map from server data (deduplicate by userId)
-        const serverUsersMap = new Map<string, User>();
-        roomUsers.forEach((user) => {
-          if (user.userId !== currentUserId) {
-            // Deduplicate: if same userId exists, keep the latest one
-            const userStatus = (user as any).status || "online";
-            serverUsersMap.set(user.userId, {
-              ...user,
-              status: userStatus as "online" | "offline"
-            });
-          }
-        });
-        
-        // Log duplicates if any
-        const userIds = roomUsers.map(u => u.userId).filter(id => id !== currentUserId);
-        const uniqueUserIds = new Set(userIds);
-        if (userIds.length !== uniqueUserIds.size) {
-          console.warn("⚠️ Duplicate userIds detected in room-users:", userIds.filter((id, idx) => userIds.indexOf(id) !== idx));
+
+        // If server returns empty list, don't wipe existing members (API already has offline members)
+        if (!roomUsers || roomUsers.length === 0) {
+          return prev;
         }
-        
-        // Convert to array - this is the new source of truth (only users from server)
-        const updated = Array.from(serverUsersMap.values());
-        
-        // Log status changes
-        updated.forEach((user) => {
-          const prevUser = prev.find(u => u.userId === user.userId);
-          if (prevUser && prevUser.status !== user.status) {
-            console.log(`🔄 Status changed: ${user.userId} (${user.username}) ${prevUser.status} → ${user.status} (REALTIME)`);
-          }
+
+        const nextMap = new Map<string, User>();
+        prev.forEach((u) => nextMap.set(u.userId, u));
+
+        // Merge payload into existing map
+        roomUsers.forEach((user) => {
+          if (user.userId === currentUserId) return;
+          const prevUser = nextMap.get(user.userId);
+          const status = ((user as any).status ||
+            prevUser?.status ||
+            "online") as "online" | "offline";
+          nextMap.set(user.userId, {
+            ...(prevUser || {}),
+            ...user,
+            status,
+          });
         });
-        
-        console.log("📊 Updated users list (server is source of truth):", updated.length, "users");
-        console.log("📊 Users:", updated.map(u => ({ userId: u.userId, username: u.username, status: (u as any).status })));
-        
+
+        const updated = Array.from(nextMap.values());
+        console.log("📊 Updated users list (merged room-users):", updated.length, "users");
         return updated;
       });
     });
