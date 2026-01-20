@@ -101,6 +101,7 @@ interface ChatContextType {
   leaveVoiceChannel: () => void;
   currentVoiceChannel: string | null;
   updateChannelUnread: (channelId: string, count: number) => void;
+  markChannelAsViewed: (channelId: string) => void;
   createChannel: (
     name: string,
     type: "text" | "voice",
@@ -158,10 +159,11 @@ export const ChatProvider = ({ children, roomId }: ChatProviderProps) => {
     channels,
     voiceChannels,
     currentVoiceChannel,
-    viewedChannels,
+    lastReadAt,
     joinVoiceChannel,
     leaveVoiceChannel,
     updateChannelUnread,
+    markChannelAsViewed,
     createChannel,
     setChannelUnreads,
   } = useChatChannels(roomId);
@@ -176,11 +178,11 @@ export const ChatProvider = ({ children, roomId }: ChatProviderProps) => {
     const unreadCounts = new Map<string, number>();
 
     messages.forEach((msg) => {
-      // Only count unread for channels user hasn't viewed
+      // Count unread messages newer than the last-read timestamp per channel
       if (
         msg.type === "global" &&
         msg.channelId &&
-        !viewedChannels.has(msg.channelId)
+        msg.timestamp > (lastReadAt.get(msg.channelId) || 0)
       ) {
         const current = unreadCounts.get(msg.channelId) || 0;
         unreadCounts.set(msg.channelId, current + 1);
@@ -188,7 +190,7 @@ export const ChatProvider = ({ children, roomId }: ChatProviderProps) => {
     });
 
     setChannelUnreads(unreadCounts);
-  }, [messages, viewedChannels, setChannelUnreads]);
+  }, [messages, lastReadAt, setChannelUnreads]);
 
   const createGroupChat = useCallback(
     (name: string, memberIds: string[]) => {
@@ -219,6 +221,7 @@ export const ChatProvider = ({ children, roomId }: ChatProviderProps) => {
     leaveVoiceChannel,
     currentVoiceChannel,
     updateChannelUnread,
+    markChannelAsViewed,
     createChannel,
     reactToMessage,
     editMessage: (messageId: string, newContent: string) =>

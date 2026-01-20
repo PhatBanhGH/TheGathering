@@ -21,6 +21,7 @@ export interface IMessageReplyTo {
 
 export interface IMessage extends Document {
   roomId: string;
+  messageId: string; // stable id used by realtime + REST
   senderId: string;
   senderName: string;
   type: "nearby" | "global" | "dm" | "group";
@@ -31,6 +32,9 @@ export interface IMessage extends Document {
   recipients: string[];
   timestamp: Date;
   editedAt?: Date | null;
+  isDeleted?: boolean;
+  deletedAt?: Date | null;
+  deletedBy?: string | null;
   replyTo?: IMessageReplyTo | null;
   reactions: IMessageReaction[];
   attachments: IMessageAttachment[];
@@ -43,6 +47,11 @@ const messageSchema = new Schema<IMessage>(
     roomId: {
       type: String,
       required: true,
+    },
+    messageId: {
+      type: String,
+      required: true,
+      index: true,
     },
     senderId: {
       type: String,
@@ -83,6 +92,19 @@ const messageSchema = new Schema<IMessage>(
     },
     editedAt: {
       type: Date,
+      default: null,
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    deletedAt: {
+      type: Date,
+      default: null,
+    },
+    deletedBy: {
+      type: String,
       default: null,
     },
     replyTo: {
@@ -128,6 +150,7 @@ messageSchema.index({ type: 1, timestamp: -1 }); // For message type queries
 messageSchema.index({ groupId: 1, timestamp: -1 }); // For group messages
 messageSchema.index({ targetUserId: 1, timestamp: -1 }); // For DM queries
 messageSchema.index({ timestamp: -1 }); // General timestamp queries
+messageSchema.index({ roomId: 1, messageId: 1 }, { unique: true });
 
 export default mongoose.model<IMessage>("Message", messageSchema);
 

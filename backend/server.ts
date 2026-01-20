@@ -25,6 +25,7 @@ import searchRoutes from "./routes/searchRoutes.js";
 import { registerChatHandlers } from "./controllers/chatController.js";
 import Room from "./models/Room.js";
 import RoomMember from "./models/RoomMember.js";
+import { registerSFUHandlers } from "./webrtc/sfu.js";
 
 // Tải biến môi trường
 dotenv.config();
@@ -74,6 +75,14 @@ const io = new Server(httpServer, {
   },
   transports: ["websocket", "polling"],
 });
+
+// Voice rule: track which voice channel a user is currently in (per room)
+// Key: `${roomId}:${userId}` -> channelId
+const userActiveVoiceChannel = new Map<string, string>();
+
+// Online status rule: debounce offline by 5s to avoid flicker on quick reconnect
+// Key: `${roomId}:${userId}` -> timeout
+const pendingOfflineTimers = new Map<string, NodeJS.Timeout>();
 
 // MongoDB Connection
 mongoose
@@ -268,7 +277,7 @@ app.get("/api/rooms/:roomId/users", async (req: Request, res: Response) => {
     );
     
     // Combine database members with online status
-    const users = allMembers.map((member) => {
+    const users = allMembers.map((member: any) => {
       const connectedUser = Array.from(connectedUsers.values()).find(
         (u) => u.userId === member.userId && u.roomId === roomId
       );
@@ -280,6 +289,7 @@ app.get("/api/rooms/:roomId/users", async (req: Request, res: Response) => {
         position: connectedUser?.position || { x: 0, y: 0 },
         status: onlineUserIds.has(member.userId) ? "online" : "offline",
         lastSeen: member.lastSeen,
+        role: member.role || "member",
       };
     });
     
@@ -351,6 +361,24 @@ const groupChats = new Map<string, GroupChat>(); // groupId -> { id, name, membe
 const voiceChannels = new Map<string, Set<string>>(); // channelId -> Set of userIds (GLOBAL, shared across all connections)
 const batchUpdateIntervals = new Map<string, NodeJS.Timeout>(); // roomId -> interval for batch position updates
 
+// Socket event rate limiting (in-memory)
+type SocketRateKey = string;
+const socketRateStore = new Map<SocketRateKey, { count: number; resetTime: number }>();
+const socketRateHit = (key: SocketRateKey, windowMs: number, max: number) => {
+  const t = Date.now();
+  const cur = socketRateStore.get(key);
+  if (!cur || cur.resetTime <= t) {
+    socketRateStore.set(key, { count: 1, resetTime: t + windowMs });
+    return { limited: false, retryAfterSec: 0 };
+  }
+  if (cur.count >= max) {
+    return { limited: true, retryAfterSec: Math.ceil((cur.resetTime - t) / 1000) };
+  }
+  cur.count += 1;
+  socketRateStore.set(key, cur);
+  return { limited: false, retryAfterSec: 0 };
+};
+
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
 
@@ -367,7 +395,7 @@ io.on("connection", (socket) => {
 
       // Validate username
       if (!username || username.trim() === "") {
-        socket.emit("error", { message: "Tên người dùng không được để trống" });
+        socket.emit("app-error", { message: "Tên người dùng không được để trống" });
         return;
       }
 
@@ -393,7 +421,7 @@ io.on("connection", (socket) => {
       );
 
       if (duplicateUser) {
-        socket.emit("error", {
+        socket.emit("app-error", {
           message: `Tên "${username}" đã được sử dụng trong phòng này. Vui lòng chọn tên khác.`,
         });
         return;
@@ -420,6 +448,15 @@ io.on("connection", (socket) => {
         socketId: socket.id,
       });
 
+      // Cancel pending offline if user reconnects quickly (avoid flicker)
+      const offlineKey = `${roomId}:${userId}`;
+      const pending = pendingOfflineTimers.get(offlineKey);
+      if (pending) {
+        clearTimeout(pending);
+        pendingOfflineTimers.delete(offlineKey);
+        console.log(`✅ Cancelled pending offline for ${offlineKey}`);
+      }
+
       // Add to room FIRST
       if (!roomUsers.has(roomId)) {
         roomUsers.set(roomId, new Set());
@@ -429,7 +466,15 @@ io.on("connection", (socket) => {
 
       // Save/Update RoomMember in database FIRST (mark as online)
       // Use upsert with proper error handling to prevent race conditions
+      let roleToSet: "admin" | "member" = "member";
       try {
+        // Ensure there is at least one admin in the room, but NEVER downgrade an existing admin.
+        const existingMember: any = await RoomMember.findOne({ roomId, userId })
+          .select({ role: 1 })
+          .lean();
+        const roomHasAdmin = await RoomMember.exists({ roomId, role: "admin" });
+        roleToSet = !roomHasAdmin ? "admin" : (existingMember?.role || "member");
+
         await RoomMember.findOneAndUpdate(
           { roomId, userId },
           {
@@ -439,6 +484,7 @@ io.on("connection", (socket) => {
             avatar: avatar || username.trim().charAt(0).toUpperCase(),
             isOnline: true,
             lastSeen: new Date(),
+            role: roleToSet,
             $setOnInsert: { joinedAt: new Date() },
           },
           { 
@@ -509,7 +555,7 @@ io.on("connection", (socket) => {
       // Prepare ALL room members list (online + offline) with correct status
       // Use Map to deduplicate by userId (in case of database duplicates)
       const usersMap = new Map();
-      allRoomMembers.forEach((member) => {
+      allRoomMembers.forEach((member: any) => {
         // Get position from connected users if online
         const connectedUser = Array.from(connectedUsers.values()).find(
           (u) => u.userId === member.userId && u.roomId === roomId
@@ -525,9 +571,64 @@ io.on("connection", (socket) => {
           position: connectedUser?.position || { x: 0, y: 0 },
           direction: connectedUser?.direction,
           status: userStatus,
+          role: member.role || "member",
         });
       });
       
+      // Normalize admin: if multiple admins exist due to race, keep a deterministic winner.
+      try {
+        const admins = (allRoomMembers as any[]).filter((m) => (m as any).role === "admin");
+        if (admins.length > 1) {
+          const winner = admins
+            .slice()
+            .sort((a, b) => {
+              const aj = new Date((a as any).joinedAt || 0).getTime();
+              const bj = new Date((b as any).joinedAt || 0).getTime();
+              if (aj !== bj) return aj - bj;
+              return String((a as any).userId).localeCompare(String((b as any).userId));
+            })[0];
+
+          const winnerId = (winner as any).userId;
+          await RoomMember.updateMany(
+            { roomId, role: "admin", userId: { $ne: winnerId } },
+            { $set: { role: "member" } }
+          );
+
+          io.to(roomId).emit("room-admin-changed", {
+            roomId,
+            newAdminUserId: winnerId,
+          });
+          console.warn(`⚠️ Normalized multiple admins in room ${roomId}. Winner=${winnerId}`);
+
+          // refresh members after normalization so role payload is correct
+          allRoomMembers = await RoomMember.find({ roomId }).lean();
+          allRoomMembers = (allRoomMembers as any[]).map((member) => ({
+            ...member,
+            isOnline: onlineUserIds.has((member as any).userId),
+          })) as any;
+
+          // rebuild usersMap with corrected roles
+          usersMap.clear();
+          (allRoomMembers as any[]).forEach((member: any) => {
+            const connectedUser = Array.from(connectedUsers.values()).find(
+              (u) => u.userId === member.userId && u.roomId === roomId
+            );
+            const userStatus = member.isOnline ? "online" : "offline";
+            usersMap.set(member.userId, {
+              userId: member.userId,
+              username: member.username,
+              avatar: member.avatar,
+              position: connectedUser?.position || { x: 0, y: 0 },
+              direction: connectedUser?.direction,
+              status: userStatus,
+              role: member.role || "member",
+            });
+          });
+        }
+      } catch (e) {
+        console.error("Error normalizing room admins:", e);
+      }
+
       const allUsersInRoom = Array.from(usersMap.values());
       
       // Log duplicates if any
@@ -544,14 +645,15 @@ io.on("connection", (socket) => {
         avatar,
         position: startPosition,
         status: "online", // Explicitly set status
+        role: roleToSet,
       });
 
       // Broadcast updated room-users list to ALL users in room (realtime update)
       // This ensures all users see the updated status immediately
-      // Filter out current user and deduplicate
-      const usersToBroadcast = allUsersInRoom.filter(m => m.userId !== userId);
-      console.log(`📢 Broadcasting room-users to ALL users in room ${roomId}:`, usersToBroadcast.length, "users");
-      console.log("📢 Users to broadcast:", usersToBroadcast.map(u => ({ userId: u.userId, username: u.username, status: u.status })));
+      // Broadcast full room-users INCLUDING current user so clients can render consistent role/status
+      const usersToBroadcast = allUsersInRoom;
+      console.log(`📢 Broadcasting room-users to ALL users in room ${roomId}:`, usersToBroadcast.length, "users (incl self)");
+      console.log("📢 Users to broadcast:", usersToBroadcast.map(u => ({ userId: u.userId, username: u.username, status: u.status, role: (u as any).role })));
       
       // IMPORTANT: Broadcast to ALL users in room using io.to() - this ensures realtime update for everyone
       // This includes the new user's other tabs and all other users in the room
@@ -595,7 +697,7 @@ io.on("connection", (socket) => {
       startBatchUpdateForRoom(roomId);
     } catch (error) {
       console.error("Error in user-join:", error);
-      socket.emit("error", { message: "Failed to join room" });
+      socket.emit("app-error", { message: "Failed to join room" });
     }
   });
 
@@ -669,6 +771,8 @@ io.on("connection", (socket) => {
   });
 
   registerChatHandlers({ io, socket, connectedUsers, roomUsers, groupChats });
+  // SFU (mediasoup) handlers for scalable voice/video (20+ users)
+  registerSFUHandlers(io, socket);
 
   // Whiteboard handlers
   socket.on("whiteboard-draw", (data) => {
@@ -751,6 +855,14 @@ io.on("connection", (socket) => {
     }
 
     const { channelId, userId, roomId } = data;
+    // Rate limit: prevent join/leave spam (per user)
+    const rl = socketRateHit(`join-voice:${roomId}:${userId}`, 10_000, 20);
+    if (rl.limited) {
+      socket.emit("app-error", {
+        message: `Bạn thao tác voice quá nhanh. Thử lại sau ${rl.retryAfterSec}s`,
+      });
+      return;
+    }
 
     // Verify user is in the same room
     if (user.roomId !== roomId) {
@@ -764,8 +876,39 @@ io.on("connection", (socket) => {
       console.log(`Created new voice channel: ${channelId}`);
     }
 
+    // Rule: 1 user chỉ được join 1 voice channel
+    const userKey = `${roomId}:${userId}`;
+    const prevChannelId = userActiveVoiceChannel.get(userKey);
+    if (prevChannelId && prevChannelId !== channelId) {
+      const prevSet = voiceChannels.get(prevChannelId);
+      if (prevSet && prevSet.has(userId)) {
+        prevSet.delete(userId);
+        if (prevSet.size === 0) {
+          voiceChannels.delete(prevChannelId);
+        }
+        io.to(roomId).emit("voice-channel-update", {
+          channelId: prevChannelId,
+          users: Array.from(prevSet || []),
+        });
+        console.log(`Auto-left previous voice channel ${prevChannelId} for user ${userId}`);
+      }
+    }
+
+    // Rule: Voice channel tối đa 20 người
+    const currentUsers = voiceChannels.get(channelId) || new Set<string>();
+    if (!currentUsers.has(userId) && currentUsers.size >= 20) {
+      socket.emit("voice-channel-full", {
+        channelId,
+        message: "Voice channel đã đầy (20 người)",
+        maxUsers: 20,
+      });
+      console.warn(`Voice channel full: ${channelId} (size=${currentUsers.size})`);
+      return;
+    }
+
     // Add user to channel
     voiceChannels.get(channelId)?.add(userId);
+    userActiveVoiceChannel.set(userKey, channelId);
 
     // Get all users in this voice channel
     const channelUsers = Array.from(voiceChannels.get(channelId) || []);
@@ -798,6 +941,14 @@ io.on("connection", (socket) => {
     if (!user) return;
 
     const { channelId, userId, roomId } = data;
+    // Rate limit: prevent spam
+    const rl = socketRateHit(`leave-voice:${roomId}:${userId}`, 10_000, 20);
+    if (rl.limited) {
+      socket.emit("app-error", {
+        message: `Bạn thao tác voice quá nhanh. Thử lại sau ${rl.retryAfterSec}s`,
+      });
+      return;
+    }
 
     // Remove user from channel
     const channel = voiceChannels.get(channelId);
@@ -821,6 +972,12 @@ io.on("connection", (socket) => {
       });
 
       console.log(`Broadcasted voice-channel-update for channel ${channelId} to room ${roomId} with ${channelUsers.length} users`);
+    }
+
+    // Clear active voice mapping if it matches
+    const userKey = `${roomId}:${userId}`;
+    if (userActiveVoiceChannel.get(userKey) === channelId) {
+      userActiveVoiceChannel.delete(userKey);
     }
   });
 
@@ -869,77 +1026,121 @@ io.on("connection", (socket) => {
         }
       });
 
-      // IMMEDIATELY broadcast user-left event (realtime)
-      io.to(roomId).emit("user-left", {
-        userId,
-        username,
-        timestamp: Date.now(),
-      });
-      console.log(`Broadcasted user-left for ${username} to room ${roomId}`);
+      // Clear active voice mapping
+      userActiveVoiceChannel.delete(`${roomId}:${userId}`);
 
-      // Update RoomMember to offline in database if no other connections
-      // Use atomic update to prevent race conditions
+      // Update RoomMember to offline in database ONLY if no other connections.
+      // Debounce by 5s to avoid status flicker from quick reconnect.
       if (!hasOtherConnections) {
-        try {
-          console.log(`Marking user ${userId} as offline in database`);
-          await RoomMember.findOneAndUpdate(
-            { roomId, userId },
-            {
-              isOnline: false,
-              lastSeen: new Date(),
-            },
-            {
-              // Ensure atomic update
-              new: false, // Don't return updated doc, just update
-              runValidators: true
-            }
-          );
-          
-          // Broadcast updated room members list to all users in room (with correct status)
-          try {
-            const allRoomMembers = await RoomMember.find({ roomId }).lean();
-            const onlineUserIds = new Set(
-              Array.from(roomUsers.get(roomId) || [])
-                .map((id) => connectedUsers.get(id)?.userId)
-                .filter((id): id is string => id !== undefined)
-            );
-            
-            // Use Map to deduplicate by userId (in case of database duplicates)
-            const membersMap = new Map<string, any>();
-            allRoomMembers.forEach((member) => {
-              // Get position from connected users if online
-              const connectedUser = Array.from(connectedUsers.values()).find(
-                (u) => u.userId === member.userId && u.roomId === roomId
-              );
-              
-              // Deduplicate: if same userId exists, keep the latest one
-              membersMap.set(member.userId, {
-                userId: member.userId,
-                username: member.username,
-                avatar: member.avatar,
-                position: connectedUser?.position || { x: 0, y: 0 },
-                direction: connectedUser?.direction,
-                status: onlineUserIds.has(member.userId) ? "online" : "offline",
-              });
-            });
-            
-            const updatedMembers = Array.from(membersMap.values());
-            
-            // Log duplicates if any
-            if (allRoomMembers.length !== membersMap.size) {
-              console.warn(`⚠️ Found ${allRoomMembers.length - membersMap.size} duplicate RoomMembers in database for room ${roomId}`);
-            }
-            
-            // Send updated list to all users in room (INCLUDING the disconnected user with offline status)
-            // This ensures other users see the user as offline, not removed from the list
-            io.to(roomId).emit("room-users", updatedMembers);
-            console.log(`Broadcasted updated room-users to room ${roomId} (${updatedMembers.length} members, including offline users)`);
-          } catch (error) {
-            console.error("Error broadcasting updated room members:", error);
+        const offlineKey = `${roomId}:${userId}`;
+
+        // Clear existing timer if any
+        const existingTimer = pendingOfflineTimers.get(offlineKey);
+        if (existingTimer) clearTimeout(existingTimer);
+
+        const timer = setTimeout(async () => {
+          pendingOfflineTimers.delete(offlineKey);
+
+          // If user reconnected within 5s, skip marking offline
+          const reconnected = Array.from(roomUsers.get(roomId) || [])
+            .map((id) => connectedUsers.get(id))
+            .some((u) => u && u.userId === userId && u.roomId === roomId);
+
+          if (reconnected) {
+            console.log(`⏭️ Skip offline for ${offlineKey} (reconnected within 5s)`);
+            return;
           }
-        } catch (error) {
-          console.error("Error updating RoomMember on disconnect:", error);
-        }
+
+          // Broadcast user-left AFTER debounce
+          io.to(roomId).emit("user-left", {
+            userId,
+            username,
+            timestamp: Date.now(),
+          });
+          console.log(`Broadcasted user-left (debounced) for ${username} to room ${roomId}`);
+
+          try {
+            console.log(`Marking user ${userId} as offline in database (debounced)`);
+            await RoomMember.findOneAndUpdate(
+              { roomId, userId },
+              { isOnline: false, lastSeen: new Date() },
+              { new: false, runValidators: true }
+            );
+
+            // If this user is the only admin, ensure there is at least one (prefer online member)
+            try {
+              const adminsLeft = await RoomMember.exists({
+                roomId,
+                role: "admin",
+                userId: { $ne: userId },
+              });
+
+              if (!adminsLeft) {
+                const candidate = await RoomMember.findOne({
+                  roomId,
+                  userId: { $ne: userId },
+                })
+                  .sort({ isOnline: -1, joinedAt: 1 })
+                  .lean();
+
+                if (candidate) {
+                  await RoomMember.findOneAndUpdate(
+                    { roomId, userId: (candidate as any).userId },
+                    { role: "admin" }
+                  );
+                  io.to(roomId).emit("room-admin-changed", {
+                    roomId,
+                    newAdminUserId: (candidate as any).userId,
+                  });
+                  console.log(`✅ Promoted new room admin: ${(candidate as any).userId} in room ${roomId}`);
+                }
+              }
+            } catch (e) {
+              console.error("Error ensuring room admin:", e);
+            }
+
+            // Broadcast updated room-users list to all users in room (with correct status)
+            try {
+              const allRoomMembers = await RoomMember.find({ roomId }).lean();
+              const onlineUserIds = new Set(
+                Array.from(roomUsers.get(roomId) || [])
+                  .map((id) => connectedUsers.get(id)?.userId)
+                  .filter((id): id is string => id !== undefined)
+              );
+
+              const membersMap = new Map<string, any>();
+              allRoomMembers.forEach((member: any) => {
+                const connectedUser = Array.from(connectedUsers.values()).find(
+                  (u) => u.userId === member.userId && u.roomId === roomId
+                );
+
+                membersMap.set(member.userId, {
+                  userId: member.userId,
+                  username: member.username,
+                  avatar: member.avatar,
+                  position: connectedUser?.position || { x: 0, y: 0 },
+                  direction: connectedUser?.direction,
+                  status: onlineUserIds.has(member.userId) ? "online" : "offline",
+                  role: member.role || "member",
+                });
+              });
+
+              const updatedMembers = Array.from(membersMap.values());
+              if (allRoomMembers.length !== membersMap.size) {
+                console.warn(`⚠️ Found ${allRoomMembers.length - membersMap.size} duplicate RoomMembers in database for room ${roomId}`);
+              }
+
+              io.to(roomId).emit("room-users", updatedMembers);
+              console.log(`Broadcasted updated room-users (debounced) to room ${roomId} (${updatedMembers.length} members)`);
+            } catch (error) {
+              console.error("Error broadcasting updated room members:", error);
+            }
+          } catch (error) {
+            console.error("Error updating RoomMember on disconnect:", error);
+          }
+        }, 5000);
+
+        pendingOfflineTimers.set(offlineKey, timer);
       } else {
         console.log(`User ${userId} still has ${remainingInRoom.length} other connections, not marking offline`);
       }

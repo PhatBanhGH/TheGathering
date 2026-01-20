@@ -291,14 +291,6 @@ export const useChatMessages = ({
 
       console.log("Sending chat message:", payload);
       socket.emit("chat-message", payload);
-
-      // Optimistically add message to local state
-      setMessages((prev) => {
-        if (prev.some((msg) => msg.id === payload.id)) {
-          return prev;
-        }
-        return [...prev, payload];
-      });
     },
     [socket, currentUser, activeTab, dmTarget, selectedGroupId, messages]
   );

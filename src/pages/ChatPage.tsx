@@ -27,6 +27,7 @@ const ChatPage = () => {
     leaveVoiceChannel,
     currentVoiceChannel,
     updateChannelUnread,
+    markChannelAsViewed,
     createChannel,
     reactToMessage,
     editMessage,
@@ -46,10 +47,10 @@ const ChatPage = () => {
 
   // Mark channel as viewed when selected
   useEffect(() => {
-    if (selectedChannel) {
-      updateChannelUnread(selectedChannel, 0);
+    if (activeTab === "global" && selectedChannel) {
+      markChannelAsViewed(selectedChannel);
     }
-  }, [selectedChannel, updateChannelUnread]);
+  }, [activeTab, selectedChannel, markChannelAsViewed]);
 
   const directMessages: DirectMessage[] = useMemo(() => {
     const dmMap = new Map<string, DirectMessage & { status?: "online" | "offline" }>();
@@ -171,6 +172,7 @@ const ChatPage = () => {
       username: user.username,
       avatar: user.avatar,
       status: ((user as any).status || "online") as "online" | "offline",
+      role: ((user as any).role || "member") as "admin" | "member",
       currentVoiceChannel:
         currentVoiceChannel && user.userId === currentUser?.userId
           ? currentVoiceChannel
@@ -202,6 +204,7 @@ const ChatPage = () => {
                 setSelectedChannel(id);
                 setSelectedDM(null);
                 setActiveTab("global");
+                markChannelAsViewed(id);
                 setMobileMenuOpen(false);
             }}
             onVoiceChannelJoin={(id: string) => {
@@ -226,7 +229,7 @@ const ChatPage = () => {
         {/* Chat Area - Main Content */}
         <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${currentVoiceChannel ? "mr-[380px]" : "mr-2"} my-2 mx-2 bg-[#1a1823]/80 backdrop-blur-md rounded-2xl border border-white/5 shadow-2xl overflow-hidden relative`}>
            {/* Background Mesh Gradient */}
-           <div className="absolute inset-0 bg-gradient-to-br from-violet-900/10 via-transparent to-fuchsia-900/5 pointer-events-none" />
+           <div className="absolute inset-0 bg-linear-to-br from-violet-900/10 via-transparent to-fuchsia-900/5 pointer-events-none" />
           
           <ChatArea
             channelName={

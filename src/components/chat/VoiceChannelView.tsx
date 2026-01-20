@@ -165,6 +165,8 @@ const VoiceChannelView = ({
     isAudioEnabled,
     mediaError,
     cameraOwner,
+    mediaStateByUser,
+    speakingByUser,
     toggleVideo,
     toggleAudio,
     startMedia,
@@ -192,9 +194,17 @@ const VoiceChannelView = ({
   const voiceChannelUsersStr = currentVoiceChannel?.users?.join(",") || "";
   useEffect(() => {
     if (currentVoiceChannel && currentUser) {
-      setVoiceChannelUsers(currentVoiceChannel.users || []);
+      setVoiceChannelUsers({
+        roomId: localStorage.getItem("roomId") || "default-room",
+        channelId,
+        userIds: currentVoiceChannel.users || [],
+      });
     } else {
-      setVoiceChannelUsers([]);
+      setVoiceChannelUsers({
+        roomId: localStorage.getItem("roomId") || "default-room",
+        channelId,
+        userIds: [],
+      });
     }
   }, [
     voiceChannelUsersStr,
@@ -219,9 +229,6 @@ const VoiceChannelView = ({
     const mappedUsers: VoiceUser[] = channelUsers.map((userId) => {
       // a. Xử lý chính mình
       if (userId === currentUser.userId) {
-        // Mock speaking state for current user
-        const isSpeaking = Math.random() > 0.7; // Fake: 30% chance of speaking
-        
         return {
           userId: currentUser.userId,
           username: currentUser.username,
@@ -229,7 +236,7 @@ const VoiceChannelView = ({
           isVideoEnabled: isVideoEnabled, // State local
           isAudioEnabled: isAudioEnabled, // State local
           stream: localStream || undefined,
-          isSpeaking: isSpeaking, // Mock speaking indicator
+          isSpeaking: speakingByUser[currentUser.userId] || false,
         };
       }
 
@@ -271,19 +278,20 @@ const VoiceChannelView = ({
         });
       }
 
-      // Mock speaking state (in real app, use audio level detection)
-      const isSpeaking = Math.random() > 0.7; // Fake: 30% chance of speaking
-      
+      const state = mediaStateByUser[userId];
+      const remoteVideoEnabled = state?.videoEnabled ?? (!!videoTrack && videoTrack.enabled);
+      const remoteAudioEnabled = state?.audioEnabled ?? (audioTrack?.enabled ?? false);
+
       return {
         userId: userId,
         username: user.username,
         avatar: user.avatar,
         // Hiển thị video nếu có stream và có video track (không cần check readyState vì có thể track chưa live ngay)
         // Chỉ check enabled để biết user có bật cam không
-        isVideoEnabled: !!videoTrack && videoTrack.enabled,
-        isAudioEnabled: audioTrack?.enabled ?? false,
+        isVideoEnabled: remoteVideoEnabled,
+        isAudioEnabled: remoteAudioEnabled,
         stream: remoteStream,
-        isSpeaking: isSpeaking, // Mock speaking indicator
+        isSpeaking: speakingByUser[userId] || false,
       };
     });
 
@@ -298,6 +306,8 @@ const VoiceChannelView = ({
     isVideoEnabled,
     isAudioEnabled,
     peersStreamIds, // Force update khi stream ID thay đổi
+    mediaStateByUser,
+    speakingByUser,
   ]);
 
   // Helper UI functions
@@ -316,7 +326,7 @@ const VoiceChannelView = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100 overflow-hidden">
+    <div className="flex flex-col h-full bg-linear-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100 overflow-hidden">
       <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800/50 bg-slate-950/80 backdrop-blur-sm">
         <div className="flex items-center gap-3">
           <span className="text-xl">🔊</span>
@@ -404,7 +414,7 @@ const VoiceChannelView = ({
                   </>
                 )}
 
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-3 py-3 flex items-center justify-between">
+                <div className="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/80 to-transparent px-3 py-3 flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
                     {!user.isAudioEnabled && <span className="text-lg bg-black/60 px-2 py-1 rounded" title="Đã tắt mic">🔇</span>}
                     {user.isVideoEnabled && (
@@ -428,7 +438,7 @@ const VoiceChannelView = ({
           </div>
           {!mediaError.includes("từ chối") && !mediaError.includes("Không tìm thấy") && (
             <button
-              className="px-3 py-1.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-white border-none rounded-xl cursor-pointer text-[13px] font-medium transition-all duration-200 whitespace-nowrap hover:from-indigo-500 hover:to-violet-500 hover:-translate-y-px active:translate-y-0"
+              className="px-3 py-1.5 bg-linear-to-r from-indigo-600 to-violet-600 text-white border-none rounded-xl cursor-pointer text-[13px] font-medium transition-all duration-200 whitespace-nowrap hover:from-indigo-500 hover:to-violet-500 hover:-translate-y-px active:translate-y-0"
               onClick={() => {
                 startMedia(false);
               }}

@@ -2,6 +2,18 @@
  * PlayerManager - Handles creating and managing player sprites
  */
 export class PlayerManager {
+  private static readonly DEPTH_ACTORS_BASE = 200;
+
+  private static addSoftShadow(
+    scene: Phaser.Scene,
+    container: Phaser.GameObjects.Container
+  ) {
+    // Subtle ellipse shadow under the feet (adds depth immediately)
+    const shadow = scene.add.ellipse(0, 12, 22, 10, 0x000000, 0.22);
+    shadow.setBlendMode(Phaser.BlendModes.MULTIPLY);
+    container.addAt(shadow, 0);
+  }
+
   /**
    * Create the main player sprite
    */
@@ -21,6 +33,7 @@ export class PlayerManager {
 
     const container = scene.add.container(startX, startY);
     container.setSize(32, 32);
+    container.setDepth(this.DEPTH_ACTORS_BASE + startY);
     scene.physics.world.enable(container);
     const body = container.body as Phaser.Physics.Arcade.Body;
     body.setCollideWorldBounds(true);
@@ -28,6 +41,7 @@ export class PlayerManager {
     body.setOffset(-12, 12);
 
     const sprite = scene.add.sprite(0, 0, "player");
+    this.addSoftShadow(scene, container);
     container.add(sprite);
 
     const nameLabel = scene.add.text(0, -25, currentUser?.username || "You", {
@@ -67,8 +81,10 @@ export class PlayerManager {
     const pos = user.position || { x: 100, y: 100 };
     const container = scene.add.container(pos.x, pos.y);
     container.setSize(32, 32);
+    container.setDepth(this.DEPTH_ACTORS_BASE + pos.y);
 
     const sprite = scene.add.sprite(0, 0, "player");
+    this.addSoftShadow(scene, container);
     container.add(sprite);
 
     const nameLabel = scene.add.text(0, -25, user.username || "User", {
@@ -138,6 +154,9 @@ export class PlayerManager {
         sprite.play(fullAnim, true);
       }
     }
+
+    // Ensure correct overlap (Gather-like): higher Y renders above lower Y
+    container.setDepth(this.DEPTH_ACTORS_BASE + container.y);
   }
 }
 

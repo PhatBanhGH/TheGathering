@@ -16,8 +16,9 @@ router.get("/history/:roomId", async (req: Request, res: Response): Promise<void
       roomId: string;
       type?: string;
       channelId?: string;
+      isDeleted?: any;
     }
-    const query: QueryType = { roomId };
+    const query: QueryType = { roomId, isDeleted: { $ne: true } };
     if (type) {
       query.type = type as string;
     }
@@ -36,7 +37,7 @@ router.get("/history/:roomId", async (req: Request, res: Response): Promise<void
     // Transform to match frontend ChatMessage format
     // Reverse to get chronological order (oldest first)
     const formattedMessages = messages.reverse().map((msg) => ({
-      id: msg._id.toString(),
+      id: msg.messageId || msg._id.toString(),
       userId: msg.senderId,
       username: msg.senderName,
       message: msg.content,
@@ -84,11 +85,13 @@ router.get("/search/:roomId", async (req: Request, res: Response): Promise<void>
       content: { $regex: string; $options: string };
       type?: string;
       channelId?: string;
+      isDeleted?: any;
     }
 
     const query: QueryType = {
       roomId,
       content: { $regex: q as string, $options: "i" }, // Case-insensitive search
+      isDeleted: { $ne: true },
     };
 
     if (type) {
@@ -108,7 +111,7 @@ router.get("/search/:roomId", async (req: Request, res: Response): Promise<void>
       .exec(); // Use exec() for better performance
 
     const formattedMessages = messages.map((msg) => ({
-      id: msg._id.toString(),
+      id: msg.messageId || msg._id.toString(),
       userId: msg.senderId,
       username: msg.senderName,
       message: msg.content,

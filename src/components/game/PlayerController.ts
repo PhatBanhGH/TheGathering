@@ -179,7 +179,8 @@ export class PlayerController {
     setInteractionPrompt: (prompt: string | null) => void,
     setIsSitting: (sitting: boolean) => void,
     setPlayerPosition: (x: number, y: number) => void,
-    playAnimation: (animName: string) => void
+    playAnimation: (animName: string) => void,
+    onInteract?: (interaction: { type: string; name: string }) => void
   ): void {
     if (!this.playerContainer || !interactiveObjects) return;
 
@@ -218,6 +219,9 @@ export class PlayerController {
         }
       } else {
         setInteractionPrompt(`Press E to Interact with ${name}`);
+        if (this.wasd?.E && Phaser.Input.Keyboard.JustDown(this.wasd.E)) {
+          onInteract?.({ type, name });
+        }
       }
     } else {
       setInteractionPrompt(null);

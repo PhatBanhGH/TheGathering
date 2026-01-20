@@ -104,10 +104,21 @@ const GameScene = () => {
 
         // Setup camera
         if (this.playerContainer) {
-          this.cameras.main.startFollow(this.playerContainer);
+          this.cameras.main.setRoundPixels(true);
+          this.cameras.main.startFollow(this.playerContainer, true, 0.12, 0.12);
           this.cameras.main.setZoom(1.5);
           this.targetZoom = 1.5;
         }
+
+        // Subtle ambient overlay to make the map feel less flat (very low opacity)
+        const overlay = this.add
+          .rectangle(0, 0, this.scale.width, this.scale.height, 0x0b1020, 0.06)
+          .setOrigin(0, 0)
+          .setScrollFactor(0)
+          .setDepth(100000);
+        this.scale.on("resize", (gameSize: any) => {
+          overlay.setSize(gameSize.width, gameSize.height);
+        });
 
         // Setup zoom controls
         this.input.on("wheel", (_pointer: any, _gameObjects: any, _deltaX: number, deltaY: number) => {
@@ -162,6 +173,16 @@ const GameScene = () => {
           (animName) => this.playAnimation(animName)
         );
 
+        // Depth sorting (Gather-like overlap): higher Y renders above lower Y
+        // Use a base depth so we stay above the ground/walls layers
+        const DEPTH_ACTORS_BASE = 200;
+        if (this.playerContainer) {
+          this.playerContainer.setDepth(DEPTH_ACTORS_BASE + this.playerContainer.y);
+        }
+        this.otherPlayers.forEach((p) => {
+          p.container.setDepth(DEPTH_ACTORS_BASE + p.container.y);
+        });
+
         // Check interactions (can be throttled, but keep responsive)
         this.playerController.checkInteractions(
           this,
@@ -173,7 +194,14 @@ const GameScene = () => {
               this.playerContainer.setPosition(x, y);
             }
           },
-          (animName) => this.playAnimation(animName)
+          (animName) => this.playAnimation(animName),
+          ({ type, name }) => {
+            // Bridge Phaser interaction -> React UI via state
+            // Keep it light: show a short toast-like prompt
+            setInteractionPrompt(`✅ ${name}`);
+            setTimeout(() => setInteractionPrompt(null), 900);
+            console.log("Interaction:", { type, name });
+          }
         );
 
         // Update NPCs (throttled for performance)

@@ -23,6 +23,7 @@ interface User {
   direction?: string;
   roomId?: string;
   status?: "online" | "offline"; // Track user status
+  role?: "admin" | "member";
 }
 
 const SocketContext = createContext<SocketContextType | undefined>(undefined);
@@ -118,6 +119,7 @@ export const SocketProvider = ({
               .map((member) => ({
                 ...member,
                 status: (member.status || "offline") as "online" | "offline",
+                role: (member.role || "member") as "admin" | "member",
               }))
           );
         } else if (response.status === 404) {
@@ -164,15 +166,32 @@ export const SocketProvider = ({
 
         // Merge payload into existing map
         roomUsers.forEach((user) => {
-          if (user.userId === currentUserId) return;
+          if (user.userId === currentUserId) {
+            // Update currentUser role/status from authoritative server payload
+            setCurrentUser((cu) =>
+              cu
+                ? {
+                    ...cu,
+                    role: ((user as any).role || (cu as any).role || "member") as
+                      | "admin"
+                      | "member",
+                  }
+                : cu
+            );
+            return;
+          }
           const prevUser = nextMap.get(user.userId);
           const status = ((user as any).status ||
             prevUser?.status ||
             "online") as "online" | "offline";
+          const role = ((user as any).role ||
+            (prevUser as any)?.role ||
+            "member") as "admin" | "member";
           nextMap.set(user.userId, {
             ...(prevUser || {}),
             ...user,
             status,
+            role,
           });
         });
 
@@ -188,6 +207,16 @@ export const SocketProvider = ({
         const currentUserId = currentUserIdRef.current;
         // Don't update current user
         if (user.userId === currentUserId) {
+          setCurrentUser((cu) =>
+            cu
+              ? {
+                  ...cu,
+                  role: ((user as any).role || (cu as any).role || "member") as
+                    | "admin"
+                    | "member",
+                }
+              : cu
+          );
           return prev;
         }
         
@@ -199,14 +228,31 @@ export const SocketProvider = ({
           updated[existingIndex] = { 
             ...updated[existingIndex], 
             ...user,
-            status: (user as any).status || "online" as const 
+            status: (user as any).status || "online" as const,
+            role: ((user as any).role || updated[existingIndex].role || "member") as "admin" | "member",
           };
           console.log(`Updated user ${user.userId} to online - REALTIME`);
           return updated;
         }
         // Add new user as online
-        return [...prev, { ...user, status: (user as any).status || "online" as const }];
+        return [
+          ...prev,
+          {
+            ...user,
+            status: (user as any).status || ("online" as const),
+            role: ((user as any).role || "member") as "admin" | "member",
+          },
+        ];
       });
+    });
+
+    // Admin transfer event (optional UI sync)
+    newSocket.on("room-admin-changed", (data: { roomId: string; newAdminUserId: string }) => {
+      setUsers((prev) =>
+        prev.map((u) =>
+          u.userId === data.newAdminUserId ? { ...u, role: "admin" } : u
+        )
+      );
     });
 
     newSocket.on("user-left", (data: { userId: string; username?: string; timestamp?: number }) => {
@@ -259,8 +305,8 @@ export const SocketProvider = ({
       console.log(`Room ${data.roomId}: ${data.currentUsers}/${data.maxUsers} users`);
     });
 
-    newSocket.on("error", (data: { message: string }) => {
-      console.error("Socket error:", data.message);
+    newSocket.on("app-error", (data: { message: string }) => {
+      console.error("App error:", data.message);
       // Show alert for all errors (including duplicate username)
       alert(data.message);
     });

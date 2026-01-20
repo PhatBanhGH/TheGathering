@@ -12,7 +12,10 @@ export const useChatChannels = (roomId: string) => {
   const [channelUnreads, setChannelUnreads] = useState<Map<string, number>>(
     new Map()
   );
-  const [viewedChannels, setViewedChannels] = useState<Set<string>>(new Set());
+  // Track per-channel last read timestamp (ms). This enables "mark as read" to clear
+  // the badge when a channel is opened, while still allowing future new messages
+  // to increment unread again.
+  const [lastReadAt, setLastReadAt] = useState<Map<string, number>>(new Map());
 
   // Initialize default channels (only once, don't reset if already initialized)
   useEffect(() => {
@@ -245,7 +248,11 @@ export const useChatChannels = (roomId: string) => {
 
   const markChannelAsViewed = useCallback(
     (channelId: string) => {
-      setViewedChannels((prev) => new Set(prev).add(channelId));
+      setLastReadAt((prev) => {
+        const next = new Map(prev);
+        next.set(channelId, Date.now());
+        return next;
+      });
       updateChannelUnread(channelId, 0);
     },
     [updateChannelUnread]
@@ -314,13 +321,13 @@ export const useChatChannels = (roomId: string) => {
     voiceChannels,
     currentVoiceChannel,
     channelUnreads,
-    viewedChannels,
+    lastReadAt,
     joinVoiceChannel,
     leaveVoiceChannel,
     updateChannelUnread,
     markChannelAsViewed,
     createChannel,
     setChannelUnreads,
-    setViewedChannels,
+    setLastReadAt,
   };
 };

@@ -223,9 +223,16 @@ const Sidebar = () => {
                       <span className="text-[13px] font-medium text-slate-200 whitespace-nowrap overflow-hidden text-ellipsis group-hover:text-white transition-colors">
                         {user.username}
                       </span>
-                      <span className="text-[10px] text-emerald-500/80 font-medium">
-                        Active now
-                      </span>
+                      <div className="mt-1 flex items-center gap-2">
+                        <span className="text-[10px] text-emerald-500/80 font-medium">
+                          Active now
+                        </span>
+                        {(user as any).role === "admin" && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full font-bold text-white bg-gradient-to-r from-amber-500 to-orange-500 shadow-sm">
+                            ADMIN
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -259,6 +266,13 @@ const Sidebar = () => {
                         <span className="text-[13px] font-medium text-slate-400 whitespace-nowrap overflow-hidden text-ellipsis group-hover:text-slate-200">
                           {user.username}
                         </span>
+                        {(user as any).role === "admin" && (
+                          <div className="mt-1">
+                            <span className="text-[10px] px-2 py-0.5 rounded-full font-bold text-white bg-gradient-to-r from-amber-500 to-orange-500 shadow-sm">
+                              ADMIN
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}

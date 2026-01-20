@@ -5,6 +5,12 @@ export class MapRenderer {
   private map?: Phaser.Tilemaps.Tilemap;
   private wallLayer?: Phaser.Tilemaps.TilemapLayer;
   private interactiveObjects?: Phaser.GameObjects.Group;
+  private readonly DEPTH = {
+    ground: 0,
+    walls: 100,
+    actorsBase: 200,
+    decoration: 1000,
+  };
 
   /**
    * Create the game map with all layers
@@ -20,7 +26,7 @@ export class MapRenderer {
 
       if (tileset) {
         // Ground layer
-        this.map.createLayer("Ground", tileset, 0, 0)?.setDepth(0);
+        this.map.createLayer("Ground", tileset, 0, 0)?.setDepth(this.DEPTH.ground);
 
         // Background Image (if any)
         if ((mapData as any)?.backgroundImage) {
@@ -34,12 +40,18 @@ export class MapRenderer {
         // Wall layer with collision
         this.wallLayer = this.map.createLayer("World", tileset, 0, 0) || undefined;
         if (this.wallLayer) {
-          this.wallLayer.setDepth(10);
+          this.wallLayer.setDepth(this.DEPTH.walls);
           this.wallLayer.setCollisionByExclusion([-1]);
         }
 
         // Decoration layer
-        this.map.createLayer("Decoration", tileset, 0, 0)?.setDepth(30);
+        this.map.createLayer("Decoration", tileset, 0, 0)?.setDepth(this.DEPTH.decoration);
+
+        // World/camera bounds
+        const worldW = this.map.widthInPixels;
+        const worldH = this.map.heightInPixels;
+        scene.physics.world.setBounds(0, 0, worldW, worldH);
+        scene.cameras.main.setBounds(0, 0, worldW, worldH);
 
         // Interactive objects layer
         this.interactiveObjects = scene.physics.add.group();

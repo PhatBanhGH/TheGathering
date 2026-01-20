@@ -27,7 +27,13 @@ export function rateLimiter(windowMs: number = 60000, maxRequests: number = 100)
       return;
     }
 
-    const key = req.ip || req.socket.remoteAddress || "unknown";
+    // Keying strategy:
+    // - Rate limit by IP *and* endpoint to avoid false positives when a client performs
+    //   multiple legitimate calls during auth flows (register -> login -> socket connect).
+    // - Still keeps protection per endpoint.
+    const ip = req.ip || req.socket.remoteAddress || "unknown";
+    const endpoint = `${req.method}:${req.baseUrl || ""}${req.path || ""}`;
+    const key = `${ip}:${endpoint}`;
     const now = Date.now();
 
     // Clean up expired entries
@@ -76,7 +82,11 @@ export function rateLimiter(windowMs: number = 60000, maxRequests: number = 100)
 /**
  * Strict rate limiter for authentication endpoints
  */
-export const authRateLimiter = rateLimiter(900000, 5); // 5 requests per 15 minutes
+const isProd = process.env.NODE_ENV === "production";
+// Local/demo: allow multiple browsers on same machine/IP without tripping 429
+export const authRateLimiter = isProd
+  ? rateLimiter(15 * 60 * 1000, 5) // 5 requests per 15 minutes (prod)
+  : rateLimiter(60 * 1000, 30); // 30 requests per minute (dev/demo)
 
 /**
  * General API rate limiter

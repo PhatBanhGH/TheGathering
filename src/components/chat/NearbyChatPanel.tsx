@@ -23,6 +23,11 @@ const NearbyChatPanel = ({ isOpen, onClose }: NearbyChatPanelProps) => {
   const [inputMessage, setInputMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  function calculateDistance(user: any): number {
+    if (!currentUser) return 0;
+    return calculateDistanceInMeters(user.position, currentUser.position);
+  }
+
   // Calculate nearby users (within 200 pixels)
   const nearbyUsers = getNearbyUsers(users, currentUser, 200);
 
@@ -32,7 +37,11 @@ const NearbyChatPanel = ({ isOpen, onClose }: NearbyChatPanelProps) => {
 
     const handleChatMessage = (data: any) => {
       if (data.type === 'nearby') {
-        setMessages((prev) => [...prev, data]);
+        setMessages((prev) => {
+          // Deduplicate by id (server authoritative)
+          if (prev.some((m) => m.id === data.id)) return prev;
+          return [...prev, data];
+        });
       }
     };
 
@@ -61,7 +70,6 @@ const NearbyChatPanel = ({ isOpen, onClose }: NearbyChatPanelProps) => {
     };
 
     socket.emit('chat-message', message);
-    setMessages((prev) => [...prev, message]);
     setInputMessage('');
   };
 
@@ -70,11 +78,6 @@ const NearbyChatPanel = ({ isOpen, onClose }: NearbyChatPanelProps) => {
       e.preventDefault();
       handleSendMessage();
     }
-  };
-
-  const formatTime = (timestamp: number) => {
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
   };
 
   if (!isOpen) return null;
@@ -167,10 +170,6 @@ const NearbyChatPanel = ({ isOpen, onClose }: NearbyChatPanelProps) => {
     </>
   );
 
-  const calculateDistance = (user: any): number => {
-    if (!currentUser) return 0;
-    return calculateDistanceInMeters(user.position, currentUser.position);
-  };
 };
 
 export default NearbyChatPanel;
