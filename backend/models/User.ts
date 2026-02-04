@@ -6,7 +6,9 @@ export interface IUser extends Document {
   password?: string;
   googleId?: string;
   avatar: string;
+  avatarConfig?: any;
   avatarColor: string;
+  displayName?: string;
   status: "Available" | "Busy" | "Away" | "Do Not Disturb";
   role?: "admin" | "moderator" | "member" | "guest";
   currentRoom?: string | null;
@@ -48,9 +50,17 @@ const userSchema = new Schema<IUser>(
       type: String,
       default: "default",
     },
+    avatarConfig: {
+      type: Object,
+      default: {},
+    },
     avatarColor: {
       type: String,
       default: "#4f46e5",
+    },
+    displayName: {
+      type: String,
+      trim: true,
     },
     status: {
       type: String,
@@ -81,9 +91,6 @@ const userSchema = new Schema<IUser>(
 );
 
 // Indexes for performance optimization
-userSchema.index({ email: 1 }); // Already unique, but explicit index
-userSchema.index({ username: 1 }); // Already unique, but explicit index
-userSchema.index({ googleId: 1 }); // For OAuth lookups
 userSchema.index({ currentRoom: 1 }); // For room user queries
 userSchema.index({ role: 1 }); // For role-based queries
 userSchema.index({ lastSeen: -1 }); // For active users queries

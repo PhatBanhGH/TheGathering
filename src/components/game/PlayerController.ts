@@ -83,13 +83,23 @@ export class PlayerController {
       moved = true;
       direction = "left";
       anim = "walk-left";
-      this.playerSprite?.setFlipX(false);
+      // For legacy "player" spritesheet, right direction is mirrored.
+      // For LPC avatar spritesheets, left/right have distinct rows, so don't flip.
+      if (this.playerSprite?.texture?.key === "player") {
+        this.playerSprite?.setFlipX(false);
+      } else {
+        this.playerSprite?.setFlipX(false);
+      }
     } else if (this.cursors.right.isDown || this.wasd?.D?.isDown) {
       body.setVelocityX(this.moveSpeed);
       moved = true;
       direction = "right";
       anim = "walk-right";
-      this.playerSprite?.setFlipX(true);
+      if (this.playerSprite?.texture?.key === "player") {
+        this.playerSprite?.setFlipX(true);
+      } else {
+        this.playerSprite?.setFlipX(false);
+      }
     }
 
     if (this.cursors.up.isDown || this.wasd?.W?.isDown) {

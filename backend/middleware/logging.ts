@@ -16,9 +16,10 @@ import { logger } from "../utils/logger.js";
 export function requestLogger(req: Request, res: Response, next: NextFunction): void {
   const startTime = Date.now();
   const userId = (req as any).userId; // From auth middleware if present
+  const fullPath = req.originalUrl || req.url || req.path;
 
   // Log request start
-  logger.debug(`Request started: ${req.method} ${req.path}`, {
+  logger.debug(`Request started: ${req.method} ${fullPath}`, {
     ip: req.ip,
     userAgent: req.get("user-agent"),
     userId,
@@ -31,7 +32,7 @@ export function requestLogger(req: Request, res: Response, next: NextFunction): 
     const statusCode = res.statusCode;
 
     // Log request completion
-    logger.logRequest(req.method, req.path, statusCode, duration, userId);
+    logger.logRequest(req.method, fullPath, statusCode, duration, userId);
 
     // Call original end
     originalEnd.call(this, chunk, encoding);

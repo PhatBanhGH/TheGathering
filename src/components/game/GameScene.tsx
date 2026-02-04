@@ -18,6 +18,7 @@ import {
   SpeechBubble,
 } from ".";
 import { ReactionDisplay } from "./ReactionDisplay";
+import { composeAvatarSpriteSheetCanvas } from "../../utils/avatarComposer";
 
 const GameScene = () => {
   const gameRef = useRef<Phaser.Game | null>(null);
@@ -65,15 +66,52 @@ const GameScene = () => {
         AssetLoader.preload(this);
       }
 
-      create() {
+      async create() {
         // Create Animations
         AnimationManager.createAllAnimations(this);
+
+        // If user has a saved avatarConfig, compose it into a Phaser spritesheet texture
+        // so the in-game character matches the editor avatar.
+        let playerSpriteKey = "player";
+        let playerSpriteScale = 1;
+        try {
+          const avatarConfig = (currentUser as any)?.avatarConfig;
+          const userId = (currentUser as any)?.userId;
+          if (avatarConfig && userId) {
+            const key = `avatar-${userId}`;
+            if (!this.textures.exists(key)) {
+              const canvas = await composeAvatarSpriteSheetCanvas({ avatarConfig });
+              if (canvas) {
+                // Register as spritesheet (LPC 64x64)
+                (this.textures as any).addSpriteSheet(key, canvas, {
+                  frameWidth: 64,
+                  frameHeight: 64,
+                });
+                AnimationManager.createCharacterAnimations(this, key, {
+                  layout: "lpc",
+                  frameWidth: 64,
+                  frameHeight: 64,
+                });
+                playerSpriteKey = key;
+                playerSpriteScale = 0.5; // 64px -> ~32px in world
+              }
+            } else {
+              playerSpriteKey = key;
+              playerSpriteScale = 0.5;
+            }
+          }
+        } catch (e) {
+          console.warn("Failed to compose avatar spritesheet, falling back:", e);
+        }
 
         // Create Map
         const { wallLayer } = this.mapRenderer.createMap(this, mapData);
 
         // Create Player
-        const playerData = PlayerManager.createPlayer(this, currentUser, wallLayer);
+        const playerData = PlayerManager.createPlayer(this, currentUser, wallLayer, {
+          spriteKey: playerSpriteKey,
+          scale: playerSpriteScale,
+        });
         this.playerContainer = playerData.container;
         this.playerSprite = playerData.sprite;
         this.playerController.setPlayer(this.playerContainer, this.playerSprite);
@@ -236,7 +274,8 @@ const GameScene = () => {
 
       playAnimation(animName: string) {
         if (!this.playerSprite) return;
-        const fullAnim = `player-${animName}`;
+        const spriteKey = (this.playerSprite as any).texture?.key || "player";
+        const fullAnim = `${spriteKey}-${animName}`;
         if (this.anims.exists(fullAnim)) {
           this.playerSprite.play(fullAnim, true);
         }

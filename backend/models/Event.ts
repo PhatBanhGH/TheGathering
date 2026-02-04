@@ -55,7 +55,6 @@ const eventSchema = new Schema<IEvent>(
     roomId: {
       type: String,
       required: true,
-      index: true,
     },
     title: {
       type: String,

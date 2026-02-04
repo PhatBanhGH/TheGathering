@@ -4,6 +4,11 @@
  */
 import express, { Request, Response } from "express";
 import Room from "../models/Room.js";
+import RoomMember from "../models/RoomMember.js";
+import Map from "../models/Map.js";
+import ObjectModel from "../models/Object.js";
+import Event from "../models/Event.js";
+import Message from "../models/Message.js";
 import {
   getEventsByRoom,
   createEvent,
@@ -19,13 +24,147 @@ import {
   updateTemplate,
   deleteTemplate,
 } from "../controllers/eventTemplateController.js";
-import { authenticate } from "../middleware/security.js";
+import { authenticate, optionalAuthenticate } from "../middleware/security.js";
 
 const router = express.Router();
 
 // ============================================
 // Room Routes
 // ============================================
+
+// List rooms
+// - Public (no auth): returns public rooms only
+// - Auth: can pass ?mine=1 to get rooms created/joined by the user
+router.get(
+  "/",
+  optionalAuthenticate,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const mine = String(req.query.mine || "") === "1";
+      const userId = (req as any).userId as string | undefined;
+
+      if (!userId) {
+        // Unauthed: only public rooms
+        const rooms = await Room.find({ isPrivate: false })
+          .sort({ updatedAt: -1 })
+          .limit(100)
+          .lean();
+        res.json({ rooms });
+        return;
+      }
+
+      if (mine) {
+        const memberRoomIds = await RoomMember.find({ userId })
+          .select({ roomId: 1, _id: 0 })
+          .lean();
+        const roomIdSet = new Set(memberRoomIds.map((m: any) => m.roomId));
+
+        // include createdBy rooms even if user is not a member yet
+        const createdRooms = await Room.find({ createdBy: userId })
+          .select({ roomId: 1 })
+          .lean();
+        createdRooms.forEach((r: any) => roomIdSet.add(r.roomId));
+
+        const roomIds = Array.from(roomIdSet);
+        const rooms = await Room.find({ roomId: { $in: roomIds } })
+          .sort({ updatedAt: -1 })
+          .lean();
+
+        res.json({ rooms });
+        return;
+      }
+
+      // Authed + not mine: show public rooms + rooms user created
+      const rooms = await Room.find({
+        $or: [{ isPrivate: false }, { createdBy: userId }],
+      })
+        .sort({ updatedAt: -1 })
+        .limit(200)
+        .lean();
+      res.json({ rooms });
+    } catch (error) {
+      const err = error as Error;
+      res.status(500).json({ message: err.message });
+    }
+  }
+);
+
+// Create room
+router.post("/", authenticate, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = (req as any).userId as string;
+    const rawRoomId = String(req.body.roomId || "").trim();
+    const name = String(req.body.name || "").trim() || "Không gian của tôi";
+    const description = String(req.body.description || "").trim();
+    const isPrivate = !!req.body.isPrivate;
+    const maxUsers = Number(req.body.maxUsers || 20);
+
+    const roomId =
+      rawRoomId ||
+      `space-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+
+    const existing = await Room.findOne({ roomId }).lean();
+    if (existing) {
+      res.status(409).json({ message: "Room ID already exists" });
+      return;
+    }
+
+    const room = await Room.create({
+      roomId,
+      name,
+      description,
+      isPrivate,
+      maxUsers,
+      createdBy: userId,
+    });
+
+    res.status(201).json({ room });
+  } catch (error) {
+    const err = error as Error;
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Delete room (creator or room admin)
+router.delete(
+  "/:roomId",
+  authenticate,
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { roomId } = req.params;
+      const userId = (req as any).userId as string;
+
+      const room = await Room.findOne({ roomId });
+      if (!room) {
+        res.status(404).json({ message: "Room not found" });
+        return;
+      }
+
+      const isCreator = (room as any).createdBy && String((room as any).createdBy) === String(userId);
+      const isAdmin = await RoomMember.exists({ roomId, userId, role: "admin" });
+
+      if (!isCreator && !isAdmin) {
+        res.status(403).json({ message: "Forbidden: not room owner/admin" });
+        return;
+      }
+
+      // Cascade delete best-effort
+      await Promise.allSettled([
+        Room.deleteOne({ roomId }),
+        RoomMember.deleteMany({ roomId }),
+        Map.deleteMany({ roomId }),
+        ObjectModel.deleteMany({ roomId }),
+        Event.deleteMany({ roomId }),
+        Message.deleteMany({ roomId }),
+      ]);
+
+      res.json({ message: "Room deleted" });
+    } catch (error) {
+      const err = error as Error;
+      res.status(500).json({ message: err.message });
+    }
+  }
+);
 
 // Get room info
 router.get("/:roomId", async (req: Request, res: Response): Promise<void> => {

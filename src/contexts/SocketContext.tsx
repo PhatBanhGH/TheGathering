@@ -24,6 +24,9 @@ interface User {
   roomId?: string;
   status?: "online" | "offline"; // Track user status
   role?: "admin" | "member";
+  // Linked avatar from profile (optional)
+  displayName?: string;
+  avatarConfig?: Record<string, string>;
 }
 
 const SocketContext = createContext<SocketContextType | undefined>(undefined);
@@ -66,15 +69,43 @@ export const SocketProvider = ({
       setIsConnected(true);
 
       // Join room
-      let userId = localStorage.getItem("userId");
-      if (!userId) {
-        userId = `user-${Date.now()}-${Math.random()
-          .toString(36)
-          .substr(2, 9)}`;
-        localStorage.setItem("userId", userId);
+      // Prefer authenticated user identity (so avatar + profile can be linked)
+      let userId: string | null = null;
+      let resolvedUsername = username;
+      let displayName: string | undefined;
+      let avatarConfig: Record<string, string> | undefined;
+
+      try {
+        const userStr = localStorage.getItem("user");
+        if (userStr) {
+          const u = JSON.parse(userStr);
+          userId = (u?.id || u?._id || null) as string | null;
+          displayName = (u?.displayName || u?.username) as string | undefined;
+          avatarConfig = (u?.avatarConfig || undefined) as
+            | Record<string, string>
+            | undefined;
+          // Prefer displayName if present
+          resolvedUsername =
+            (localStorage.getItem("userName") as string) ||
+            displayName ||
+            (u?.username as string) ||
+            resolvedUsername;
+        }
+      } catch (e) {
+        console.warn("Failed to parse localStorage user profile:", e);
       }
+
+      if (!userId) {
+        userId = localStorage.getItem("userId");
+      }
+      if (!userId) {
+        userId = `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      }
+      localStorage.setItem("userId", userId);
+
       const storedAvatar =
-        localStorage.getItem("userAvatar") || username.charAt(0).toUpperCase();
+        localStorage.getItem("userAvatar") ||
+        (resolvedUsername || username).charAt(0).toUpperCase();
       const storedPosition = (() => {
         try {
           const raw = localStorage.getItem("userPosition");
@@ -95,11 +126,13 @@ export const SocketProvider = ({
       })();
       const user: User = {
         userId,
-        username,
+        username: resolvedUsername,
         avatar: storedAvatar,
         position: storedPosition,
         roomId,
         status: "online",
+        displayName,
+        avatarConfig,
       };
       setCurrentUser(user);
       currentUserIdRef.current = userId;
@@ -133,7 +166,7 @@ export const SocketProvider = ({
 
       newSocket.emit("user-join", {
         userId,
-        username,
+        username: resolvedUsername,
         roomId,
         avatar: storedAvatar,
         position: storedPosition,

@@ -24,7 +24,13 @@
     "simple-peer": "^9.11.1",
     "socket.io-client": "^4.7.2",
     "stream-browserify": "^3.0.0",
-    "tailwindcss": "^4.1.14"
+    "tailwindcss": "^4.1.14",
+    "lucide-react": "^0.562.0",
+    "react-icons": "^5.5.0",
+    "@react-oauth/google": "^0.12.2",
+    "react-turnstile": "^1.1.4",
+    "framer-motion": "^10.16.4",
+    "nodemailer": "^7.0.10"
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",

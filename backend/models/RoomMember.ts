@@ -18,7 +18,6 @@ const roomMemberSchema = new Schema<IRoomMember>(
     roomId: {
       type: String,
       required: true,
-      index: true,
     },
     userId: {
       type: String,

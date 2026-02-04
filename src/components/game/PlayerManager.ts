@@ -20,7 +20,8 @@ export class PlayerManager {
   static createPlayer(
     scene: Phaser.Scene,
     currentUser: any,
-    wallLayer?: Phaser.Tilemaps.TilemapLayer
+    wallLayer?: Phaser.Tilemaps.TilemapLayer,
+    opts?: { spriteKey?: string; scale?: number }
   ): {
     container: Phaser.GameObjects.Container;
     sprite: Phaser.GameObjects.Sprite;
@@ -40,7 +41,10 @@ export class PlayerManager {
     body.setSize(24, 24);
     body.setOffset(-12, 12);
 
-    const sprite = scene.add.sprite(0, 0, "player");
+    const spriteKey = opts?.spriteKey || "player";
+    const sprite = scene.add.sprite(0, 0, spriteKey);
+    const scale = typeof opts?.scale === "number" ? opts!.scale : 1;
+    if (scale !== 1) sprite.setScale(scale);
     this.addSoftShadow(scene, container);
     container.add(sprite);
 
@@ -53,7 +57,10 @@ export class PlayerManager {
     container.add(nameLabel);
 
     // Play initial animation
-    sprite.play("player-idle-down", true);
+    const idleKey = `${spriteKey}-idle-down`;
+    if (scene.anims.exists(idleKey)) {
+      sprite.play(idleKey, true);
+    }
 
     if (wallLayer) {
       scene.physics.add.collider(container, wallLayer);
@@ -72,7 +79,8 @@ export class PlayerManager {
    */
   static createOtherPlayer(
     scene: Phaser.Scene,
-    user: any
+    user: any,
+    opts?: { spriteKey?: string; scale?: number }
   ): {
     container: Phaser.GameObjects.Container;
     sprite: Phaser.GameObjects.Sprite;
@@ -83,7 +91,10 @@ export class PlayerManager {
     container.setSize(32, 32);
     container.setDepth(this.DEPTH_ACTORS_BASE + pos.y);
 
-    const sprite = scene.add.sprite(0, 0, "player");
+    const spriteKey = opts?.spriteKey || "player";
+    const sprite = scene.add.sprite(0, 0, spriteKey);
+    const scale = typeof opts?.scale === "number" ? opts!.scale : 1;
+    if (scale !== 1) sprite.setScale(scale);
     this.addSoftShadow(scene, container);
     container.add(sprite);
 
@@ -97,12 +108,17 @@ export class PlayerManager {
 
     // Play appropriate animation based on direction or default
     const direction = user.direction || "idle-down";
-    const animName = direction.startsWith("idle") ? direction : `walk-${direction}`;
-    const fullAnim = `player-${animName}`;
+    const animName = direction.startsWith("idle")
+      ? direction
+      : `walk-${direction}`;
+    const fullAnim = `${spriteKey}-${animName}`;
     if (scene.anims.exists(fullAnim)) {
       sprite.play(fullAnim, true);
     } else {
-      sprite.play("player-idle-down", true);
+      const fallbackIdle = `${spriteKey}-idle-down`;
+      if (scene.anims.exists(fallbackIdle)) {
+        sprite.play(fallbackIdle, true);
+      }
     }
 
     return {
@@ -149,7 +165,8 @@ export class PlayerManager {
     // Update animation if direction provided
     if (direction) {
       const animName = direction.startsWith("idle") ? direction : `walk-${direction}`;
-      const fullAnim = `player-${animName}`;
+      const spriteKey = sprite.texture?.key || "player";
+      const fullAnim = `${spriteKey}-${animName}`;
       if (scene.anims.exists(fullAnim)) {
         sprite.play(fullAnim, true);
       }

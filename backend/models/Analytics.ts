@@ -41,7 +41,6 @@ const analyticsSchema = new Schema<IAnalytics>(
     timestamp: {
       type: Date,
       default: Date.now,
-      index: true,
     },
     ipAddress: {
       type: String,

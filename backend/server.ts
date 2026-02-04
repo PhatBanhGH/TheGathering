@@ -1,9 +1,12 @@
+import dotenv from "dotenv";
+// Load env vars before anything else
+dotenv.config();
+
 import express, { Request, Response } from "express";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import mongoose from "mongoose";
 import cors from "cors";
-import dotenv from "dotenv";
 import nodemailer from "nodemailer";
 import jwt from "jsonwebtoken";
 import { OAuth2Client } from "google-auth-library";
@@ -25,10 +28,10 @@ import searchRoutes from "./routes/searchRoutes.js";
 import { registerChatHandlers } from "./controllers/chatController.js";
 import Room from "./models/Room.js";
 import RoomMember from "./models/RoomMember.js";
+import User from "./models/User.js";
 import { registerSFUHandlers } from "./webrtc/sfu.js";
 
-// Tải biến môi trường
-dotenv.config();
+// Tải biến môi trường (Loaded at top)
 
 const app = express();
 const httpServer = createServer(app); // Sử dụng httpServer cho Socket.IO
@@ -49,13 +52,24 @@ app.use(
 
 app.use(express.json());
 
+// DEBUG: Log all requests (only when LOG_LEVEL=debug)
+app.use((req, res, next) => {
+  if ((process.env.LOG_LEVEL || "").toLowerCase() === "debug") {
+    console.log(`[DEBUG] ${req.method} ${req.originalUrl || req.url}`);
+  }
+  next();
+});
+
+// Add request logger
+app.use(requestLogger);
+
 // Apply input sanitization middleware globally
 app.use(sanitizeBody);
 app.use(sanitizeQuery);
 
 // Health check endpoint (before rate limiting)
 app.get("/health", (req: Request, res: Response) => {
-  res.status(200).json({ 
+  res.status(200).json({
     status: "healthy",
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
@@ -101,7 +115,6 @@ interface OtpEntry {
 
 const otpStore = new Map<string, OtpEntry>();
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-const JWT_SECRET = process.env.JWT_SECRET || "your-very-secret-key-fallback";
 const OTP_EXPIRATION_MS = 5 * 60 * 1000; // 5 phút
 
 function generateOtp(): string {
@@ -119,34 +132,7 @@ async function createEmailTransporter() {
 }
 
 // === ROUTE XÁC THỰC GOOGLE ===
-app.post("/api/auth/google", async (req: Request, res: Response) => {
-  try {
-    const { token } = req.body;
-    const ticket = await googleClient.verifyIdToken({
-      idToken: token,
-      audience: process.env.GOOGLE_CLIENT_ID,
-    });
-    const payload = ticket.getPayload();
-    if (!payload || !payload.email) {
-      throw new Error("Invalid Google token");
-    }
-    console.log("✅ [Verified] Xác thực Google thành công cho:", payload.email);
-
-    // Kiểm tra xem user đã tồn tại chưa, nếu chưa thì tạo mới (Optional - tùy logic game)
-    // Hiện tại chỉ trả về token
-    const serverToken = jwt.sign(
-      { email: payload.email, name: payload.name },
-      JWT_SECRET,
-      { expiresIn: "1h" }
-    );
-    res
-      .status(200)
-      .json({ message: "Xác thực Google thành công", serverToken });
-  } catch (error) {
-    console.error("Lỗi xác thực Google:", error);
-    res.status(401).json({ message: "Xác thực thất bại." });
-  }
-});
+// Handled in routes/auth.ts
 
 // === ROUTE OTP ===
 app.post("/api/auth/send-otp", async (req: Request, res: Response) => {
@@ -231,12 +217,37 @@ app.post("/api/auth/verify-otp", async (req: Request, res: Response) => {
 
     otpStore.delete(email);
 
-    const token = jwt.sign({ email: email }, JWT_SECRET, {
+    // Find or Create User
+    let user = await User.findOne({ email });
+    if (!user) {
+      user = new User({
+        username: email.split("@")[0],
+        email: email,
+        avatar: "default",
+        password: "", // No password for OTP users
+        status: "Available",
+      });
+      await user.save();
+    } else {
+      // Update last seen
+      user.lastSeen = new Date();
+      await user.save();
+    }
+
+    // Sign token with userId
+    const token = jwt.sign({ userId: user._id, email: email }, process.env.JWT_SECRET || "dev-secret-key-12345", {
       expiresIn: "1h",
     });
 
     console.log(`✅ Xác thực thành công cho ${email}`);
-    res.status(200).json({ message: "Đăng nhập thành công!", token: token });
+    res.status(200).json({
+      message: "Đăng nhập thành công!", token: token, user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        avatar: user.avatar,
+      }
+    });
   } catch (error) {
     console.error("Lỗi khi xác minh OTP:", error);
     res.status(500).json({ message: "Lỗi máy chủ nội bộ." });
@@ -251,6 +262,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/world", worldRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/user", userRoutes); // Alias for frontend compatibility
+
 app.use("/api/spaces", spaceRoutes);
 app.use("/api/uploads", uploadRoutes);
 app.use("/api/analytics", analyticsRoutes);
@@ -265,23 +278,23 @@ app.get("/api/health", (req: Request, res: Response) => {
 app.get("/api/rooms/:roomId/users", async (req: Request, res: Response) => {
   try {
     const { roomId } = req.params;
-    
+
     // Get all room members from database (including offline)
     const allMembers = await RoomMember.find({ roomId }).lean();
-    
+
     // Get online users from connectedUsers
     const onlineUserIds = new Set(
       Array.from(connectedUsers.values())
         .filter((u) => u.roomId === roomId)
         .map((u) => u.userId)
     );
-    
+
     // Combine database members with online status
     const users = allMembers.map((member: any) => {
       const connectedUser = Array.from(connectedUsers.values()).find(
         (u) => u.userId === member.userId && u.roomId === roomId
       );
-      
+
       return {
         userId: member.userId,
         username: member.username,
@@ -292,7 +305,7 @@ app.get("/api/rooms/:roomId/users", async (req: Request, res: Response) => {
         role: member.role || "member",
       };
     });
-    
+
     res.json(users);
   } catch (error) {
     console.error("Error fetching room users:", error);
@@ -311,9 +324,8 @@ app.post("/api/rooms/:roomId/invite", async (req: Request, res: Response) => {
       return;
     }
 
-    const inviteLink = `${
-      process.env.CLIENT_URL || "http://localhost:5173"
-    }/lobby?room=${roomId}`;
+    const inviteLink = `${process.env.CLIENT_URL || "http://localhost:5173"
+      }/lobby?room=${roomId}`;
 
     res.json({
       inviteLink,
@@ -388,8 +400,8 @@ io.on("connection", (socket) => {
       const { userId, username, roomId, avatar, position } = data;
       const startPosition =
         position &&
-        typeof position.x === "number" &&
-        typeof position.y === "number"
+          typeof position.x === "number" &&
+          typeof position.y === "number"
           ? position
           : { x: 100, y: 100 };
 
@@ -487,8 +499,8 @@ io.on("connection", (socket) => {
             role: roleToSet,
             $setOnInsert: { joinedAt: new Date() },
           },
-          { 
-            upsert: true, 
+          {
+            upsert: true,
             new: true,
             setDefaultsOnInsert: true,
             // Use runValidators to ensure data integrity
@@ -533,16 +545,16 @@ io.on("connection", (socket) => {
       }> = [];
       try {
         allRoomMembers = await RoomMember.find({ roomId }).lean();
-        
+
         // Calculate online status AFTER user has been added to roomUsers
         const onlineUserIds = new Set(
           Array.from(roomUsers.get(roomId) || [])
             .map((id) => connectedUsers.get(id)?.userId)
             .filter(Boolean)
         );
-        
+
         console.log(`Room ${roomId} online users:`, Array.from(onlineUserIds));
-        
+
         // Update isOnline status based on actual connections
         allRoomMembers = allRoomMembers.map((member) => ({
           ...member,
@@ -560,9 +572,9 @@ io.on("connection", (socket) => {
         const connectedUser = Array.from(connectedUsers.values()).find(
           (u) => u.userId === member.userId && u.roomId === roomId
         );
-        
+
         const userStatus = member.isOnline ? "online" : "offline";
-        
+
         // Deduplicate: if same userId exists, keep the latest one
         usersMap.set(member.userId, {
           userId: member.userId,
@@ -574,7 +586,7 @@ io.on("connection", (socket) => {
           role: member.role || "member",
         });
       });
-      
+
       // Normalize admin: if multiple admins exist due to race, keep a deterministic winner.
       try {
         const admins = (allRoomMembers as any[]).filter((m) => (m as any).role === "admin");
@@ -602,6 +614,13 @@ io.on("connection", (socket) => {
 
           // refresh members after normalization so role payload is correct
           allRoomMembers = await RoomMember.find({ roomId }).lean();
+
+          const onlineUserIds = new Set(
+            Array.from(roomUsers.get(roomId) || [])
+              .map((id) => connectedUsers.get(id)?.userId)
+              .filter(Boolean)
+          );
+
           allRoomMembers = (allRoomMembers as any[]).map((member) => ({
             ...member,
             isOnline: onlineUserIds.has((member as any).userId),
@@ -630,14 +649,14 @@ io.on("connection", (socket) => {
       }
 
       const allUsersInRoom = Array.from(usersMap.values());
-      
+
       // Log duplicates if any
       if (allRoomMembers.length !== usersMap.size) {
         console.warn(`⚠️ Found ${allRoomMembers.length - usersMap.size} duplicate RoomMembers in database for room ${roomId}`);
       }
-      
+
       console.log(`Broadcasting user-joined for ${username} (${userId}) to room ${roomId}`);
-      
+
       // Notify others in room - IMMEDIATELY broadcast user-joined
       io.to(roomId).emit("user-joined", {
         userId,
@@ -654,7 +673,7 @@ io.on("connection", (socket) => {
       const usersToBroadcast = allUsersInRoom;
       console.log(`📢 Broadcasting room-users to ALL users in room ${roomId}:`, usersToBroadcast.length, "users (incl self)");
       console.log("📢 Users to broadcast:", usersToBroadcast.map(u => ({ userId: u.userId, username: u.username, status: u.status, role: (u as any).role })));
-      
+
       // IMPORTANT: Broadcast to ALL users in room using io.to() - this ensures realtime update for everyone
       // This includes the new user's other tabs and all other users in the room
       io.to(roomId).emit("room-users", usersToBroadcast);
@@ -688,8 +707,7 @@ io.on("connection", (socket) => {
       });
 
       console.log(
-        `${username.trim()} joined room ${roomId} (${finalUserCount}/${
-          room.maxUsers
+        `${username.trim()} joined room ${roomId} (${finalUserCount}/${room.maxUsers
         })`
       );
 
@@ -924,13 +942,13 @@ io.on("connection", (socket) => {
       channelId,
       users: channelUsers,
     };
-    
+
     console.log(`✅ Broadcasting voice-channel-update for channel ${channelId} to room ${roomId} with ${channelUsers.length} users:`, channelUsers);
     console.log(`✅ Room ${roomId} has ${roomSockets.length} sockets:`, roomSockets);
-    
+
     // Broadcast to all sockets in the room
     io.to(roomId).emit("voice-channel-update", updateData);
-    
+
     // Also send directly to the socket to ensure it receives the update immediately
     socket.emit("voice-channel-update", updateData);
     console.log(`✅ Also sent voice-channel-update directly to socket ${socket.id}`);
@@ -954,7 +972,7 @@ io.on("connection", (socket) => {
     const channel = voiceChannels.get(channelId);
     if (channel) {
       channel.delete(userId);
-      
+
       // If channel is empty, remove it
       if (channel.size === 0) {
         voiceChannels.delete(channelId);
@@ -986,12 +1004,12 @@ io.on("connection", (socket) => {
     const user = connectedUsers.get(socket.id);
     if (user) {
       console.log(`User ${user.username} (${user.userId}) is disconnecting`);
-      
+
       // Store user info before removing
       const userId = user.userId;
       const roomId = user.roomId;
       const username = user.username;
-      
+
       // Remove from roomUsers first
       if (roomUsers.has(roomId)) {
         roomUsers.get(roomId).delete(socket.id);
@@ -1007,7 +1025,7 @@ io.on("connection", (socket) => {
       const remainingInRoom = Array.from(roomUsers.get(roomId) || [])
         .map((id) => connectedUsers.get(id))
         .filter((u) => u && u.userId === userId);
-      
+
       const hasOtherConnections = remainingInRoom.length > 0;
 
       // Remove user from all voice channels

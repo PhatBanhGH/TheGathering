@@ -196,6 +196,40 @@ router.post("/google", async (req: Request, res: Response): Promise<void> => {
   }
 });
 
+
+// Check email availability
+router.post("/check-email", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      res.status(400).json({ message: "Email is required" });
+      return;
+    }
+    const user = await User.findOne({ email });
+    res.json({ exists: !!user });
+  } catch (error) {
+    console.error("Check email error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+// Forgot password (stub)
+router.post("/forgot-password", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      res.status(400).json({ message: "Email is required" });
+      return;
+    }
+    // Logic to send reset password email would go here
+    // For now, we just return success to unblock the frontend
+    res.json({ message: "If your email exists, you will receive a password reset link." });
+  } catch (error) {
+    console.error("Forgot password error:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 // Login
 router.post(
   "/login",

@@ -2,8 +2,7 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import Session from "../models/Session.js";
 
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "your-refresh-secret-key";
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "dev-refresh-secret-key-12345";
 const ACCESS_TOKEN_EXPIRY = "15m"; // 15 minutes
 const REFRESH_TOKEN_EXPIRY = "7d"; // 7 days
 
@@ -18,7 +17,7 @@ interface TokenPayload {
 export function generateAccessToken(userId: string): string {
   return jwt.sign(
     { userId, type: "access" },
-    JWT_SECRET,
+    process.env.JWT_SECRET || "dev-secret-key-12345",
     { expiresIn: ACCESS_TOKEN_EXPIRY }
   );
 }
@@ -35,7 +34,7 @@ export function generateRefreshToken(): string {
  */
 export function verifyAccessToken(token: string): TokenPayload | null {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as TokenPayload;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || "dev-secret-key-12345") as TokenPayload;
     if (decoded.type !== "access") {
       return null;
     }
