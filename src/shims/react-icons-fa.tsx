@@ -6,25 +6,26 @@ type IconProps = {
 };
 
 function makeIcon(label: string) {
-  return ({ className, size = 16 }: IconProps) => (
-    <span
-      className={className}
-      style={{
-        display: "inline-block",
-        width: typeof size === "number" ? `${size}px` : size,
-        height: typeof size === "number" ? `${size}px` : size,
-        textAlign: "center",
-        lineHeight: typeof size === "number" ? `${size}px` : size,
-        borderRadius: "9999px",
-        background: "rgba(0,0,0,0.05)",
-        fontSize:
-          typeof size === "number" ? `${Math.max(10, size - 6)}px` : "0.8em",
-      }}
-      aria-hidden="true"
-    >
-      {label}
-    </span>
-  );
+  return ({ className, size = 16 }: IconProps) =>
+    React.createElement(
+      "span",
+      {
+        className,
+        style: {
+          display: "inline-block",
+          width: typeof size === "number" ? `${size}px` : size,
+          height: typeof size === "number" ? `${size}px` : size,
+          textAlign: "center",
+          lineHeight: typeof size === "number" ? `${size}px` : size,
+          borderRadius: "9999px",
+          background: "rgba(0,0,0,0.05)",
+          fontSize:
+            typeof size === "number" ? `${Math.max(10, size - 6)}px` : "0.8em",
+        },
+        "aria-hidden": "true",
+      },
+      label
+    );
 }
 
 export const FaLaptop = makeIcon("💻");
