@@ -1,8 +1,12 @@
+
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import inject from "@rollup/plugin-inject";
-import { fileURLToPath, URL } from "node:url";
+import { fileURLToPath } from "url";
+import path from "path";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -19,14 +23,8 @@ export default defineConfig({
     sourcemap: true,
     // Ensure Rollup's CommonJS handling sees pnpm's nested node_modules
     commonjsOptions: {
-      include: [/node_modules/, /node_modules\/\.pnpm/],
+      include: [/node_modules/, /node_modules\/\.pnpm/, /simple-peer/],
       transformMixedEsModules: true,
-    },
-    rollupOptions: {
-      // Ensure React and other deps are properly bundled (not externalized)
-      output: {
-        manualChunks: undefined, // Let Vite handle chunking
-      },
     },
   },
   define: {
@@ -35,14 +33,42 @@ export default defineConfig({
   },
   resolve: {
     // Đảm bảo Vite/Rollup chỉ dùng một bản React duy nhất
-    // dedupe: ["react", "react-dom"],
+    dedupe: ["react", "react-dom"],
+    // Forced CJS resolution removed to fix @emotion/is-prop-valid
     alias: [
-      { find: "events", replacement: "events" },
+
       {
         find: "util",
         replacement: fileURLToPath(new URL("./src/polyfills/util.ts", import.meta.url)),
       },
-      { find: "stream", replacement: "stream-browserify" },
+      {
+        find: "events",
+        replacement: fileURLToPath(new URL("./src/polyfills/events.js", import.meta.url)),
+      },
+      {
+        find: "stream",
+        replacement: fileURLToPath(new URL("./src/polyfills/stream.js", import.meta.url)),
+      },
+      {
+        find: /stream-browserify/,
+        replacement: fileURLToPath(new URL("./src/polyfills/stream.js", import.meta.url)),
+      },
+      {
+        find: "string_decoder",
+        replacement: fileURLToPath(new URL("./src/polyfills/string_decoder.js", import.meta.url)),
+      },
+      {
+        find: "inherits",
+        replacement: fileURLToPath(new URL("./src/polyfills/inherits.js", import.meta.url)),
+      },
+      {
+        find: "util",
+        replacement: fileURLToPath(new URL("./src/polyfills/util.js", import.meta.url)),
+      },
+      {
+        find: "util-deprecate",
+        replacement: fileURLToPath(new URL("./src/polyfills/util_deprecate.js", import.meta.url)),
+      },
       {
         find: "globalThis",
         replacement: fileURLToPath(new URL("./src/polyfills/globalThis.ts", import.meta.url)),
@@ -69,7 +95,7 @@ export default defineConfig({
     ],
   },
   optimizeDeps: {
-    include: ["events", "util", "stream-browserify", "buffer"],
+    include: ["react", "react-dom", "events", "util", "buffer", "string_decoder", "safe-buffer", "simple-peer"],
     esbuildOptions: {
       define: {
         global: "globalThis",

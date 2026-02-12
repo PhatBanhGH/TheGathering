@@ -8,9 +8,10 @@ import {
   useRef,
   useCallback,
 } from "react";
-import SimplePeer from "simple-peer";
-type Peer = SimplePeer.Instance;
-type SignalData = SimplePeer.SignalData;
+import * as SimplePeer from "simple-peer";
+const Peer = (SimplePeer as any).default || SimplePeer;
+type PeerInstance = InstanceType<typeof Peer>;
+type SignalData = any;
 import { Device } from "mediasoup-client";
 import type { types as MediasoupTypes } from "mediasoup-client";
 import { useSocket } from "./SocketContext";
@@ -34,7 +35,7 @@ function isSameUserList(a: string[], b: string[]) {
 
 interface PeerConnection {
   // In SFU mode, `peer` is not used (kept optional to preserve UI shape).
-  peer?: Peer | null;
+  peer?: PeerInstance | null;
   userId: string;
   stream?: MediaStream;
 }
@@ -537,7 +538,7 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
     (userId: string, initiator: boolean, stream: MediaStream) => {
       console.log(`🛠 Creating peer for ${userId} (Initiator: ${initiator})`);
 
-      const peer = new SimplePeer({
+      const peer = new Peer({
         initiator,
         trickle: true,
         stream,
