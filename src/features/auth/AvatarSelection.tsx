@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import * as React from 'react';
 import { CATEGORIES, ASSETS, LAYER_ORDER } from '../../data/avatarAssets';
 import SpriteIcon from '../../components/SpriteIcon';
 import { authFetch } from '../../utils/authFetch';
@@ -9,20 +9,20 @@ interface Props { token: string; onSuccess: () => void; }
 const DEMO_COLORS = ['#FF5733', '#FFBD33', '#DBFF33', '#75FF33', '#33FF57', '#33FFBD', '#33DBFF', '#3357FF', '#7533FF', '#FF33BD'];
 
 export default function AvatarSelection({ token, onSuccess }: Props) {
-  const [avatarConfig, setAvatarConfig] = useState<any>({
+  const [avatarConfig, setAvatarConfig] = React.useState<any>({
     skin: ASSETS.skin?.[0]?.id || 'skin_1',
     hair: 'hair_1',
     top: 'shirt_1',
     bottom: 'pants_1',
   });
 
-  const [displayName, setDisplayName] = useState('David Dat'); // Default demo name
-  const [selectedCategory, setSelectedCategory] = useState('skin');
-  const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [displayName, setDisplayName] = React.useState('David Dat'); // Default demo name
+  const [selectedCategory, setSelectedCategory] = React.useState('skin');
+  const [loading, setLoading] = React.useState(false);
+  const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
   const serverUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:5001';
 
-  useEffect(() => {
+  React.useEffect(() => {
     setErrorMsg(null);
     authFetch(`${serverUrl}/api/user/me`)
       .then(async (res) => {

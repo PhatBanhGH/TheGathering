@@ -54,12 +54,6 @@ export default defineConfig({
       },
       { find: "buffer", replacement: "buffer" },
       {
-        find: "react/jsx-runtime",
-        replacement: fileURLToPath(
-          new URL("./src/shims/jsx-runtime.ts", import.meta.url)
-        ),
-      },
-      {
         find: "@react-oauth/google",
         replacement: fileURLToPath(
           new URL("./src/shims/react-oauth-google.tsx", import.meta.url)
