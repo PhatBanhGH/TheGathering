@@ -58,7 +58,7 @@ export default defineConfig({
     ],
   },
   optimizeDeps: {
-    include: ["events", "util", "stream-browserify", "buffer"],
+    include: ["events", "util", "stream-browserify", "buffer", "react/jsx-runtime"],
     esbuildOptions: {
       define: {
         global: "globalThis",
