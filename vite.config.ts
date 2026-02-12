@@ -16,6 +16,9 @@ export default defineConfig({
     tailwindcss(),
     inject({
       global: ["globalThis", "global"],
+      // Exclude HTML files from injection
+      include: ["**/*.js", "**/*.ts", "**/*.tsx", "**/*.jsx"],
+      exclude: ["**/*.html"],
     }),
   ],
   build: {
@@ -23,8 +26,14 @@ export default defineConfig({
     sourcemap: true,
     // Ensure Rollup's CommonJS handling sees pnpm's nested node_modules
     commonjsOptions: {
-      include: [/node_modules/, /node_modules\/\.pnpm/, /simple-peer/],
+      include: [/node_modules/, /node_modules\/\.pnpm/, /simple-peer/, /util-deprecate/],
       transformMixedEsModules: true,
+    },
+    rollupOptions: {
+      output: {
+        // Inject module polyfill at the start of each chunk
+        banner: `if (typeof module === "undefined") { var module = { exports: {} }; }`,
+      },
     },
   },
   define: {
