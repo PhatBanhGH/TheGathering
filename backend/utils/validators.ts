@@ -139,6 +139,39 @@ export function isValidUsername(username: string): boolean {
   return usernameRegex.test(username) && username.length >= 3 && username.length <= 20;
 }
 
+/** Map Vietnamese diacritics to ASCII for slug */
+const VI_TO_ASCII: Record<string, string> = {
+  à: "a", á: "a", ả: "a", ã: "a", ạ: "a", ă: "a", ằ: "a", ắ: "a", ẳ: "a", ẵ: "a", ặ: "a", â: "a", ầ: "a", ấ: "a", ẩ: "a", ẫ: "a", ậ: "a",
+  è: "e", é: "e", ẻ: "e", ẽ: "e", ẹ: "e", ê: "e", ề: "e", ế: "e", ể: "e", ễ: "e", ệ: "e",
+  ì: "i", í: "i", ỉ: "i", ĩ: "i", ị: "i",
+  ò: "o", ó: "o", ỏ: "o", õ: "o", ọ: "o", ô: "o", ồ: "o", ố: "o", ổ: "o", ỗ: "o", ộ: "o", ơ: "o", ờ: "o", ớ: "o", ở: "o", ỡ: "o", ợ: "o",
+  ù: "u", ú: "u", ủ: "u", ũ: "u", ụ: "u", ư: "u", ừ: "u", ứ: "u", ử: "u", ữ: "u", ự: "u",
+  ỳ: "y", ý: "y", ỷ: "y", ỹ: "y", ỵ: "y", đ: "d",
+};
+
+/**
+ * Create a valid username (3-20 chars, a-z 0-9 _) from full name.
+ * Used when user signs up with "Họ" + "Tên" (e.g. Phát, Bành) so they don't see username rules.
+ */
+export function usernameFromFullName(fullName: string, emailFallback: string): string {
+  if (!fullName || typeof fullName !== "string") {
+    const local = (emailFallback || "").split("@")[0] || "";
+    return local.replace(/[^a-zA-Z0-9_]/g, "_").slice(0, 20) || "user";
+  }
+  let slug = fullName
+    .trim()
+    .toLowerCase()
+    .split("")
+    .map((c) => VI_TO_ASCII[c] ?? c)
+    .join("");
+  slug = slug.replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "");
+  if (slug.length < 3) {
+    const local = (emailFallback || "").split("@")[0] || "";
+    slug = local.replace(/[^a-z0-9_]/g, "_").slice(0, 20) || "user";
+  }
+  return slug.slice(0, 20);
+}
+
 /**
  * Validate room ID format
  */

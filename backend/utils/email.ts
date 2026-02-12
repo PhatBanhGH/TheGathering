@@ -1,16 +1,16 @@
 import nodemailer from "nodemailer";
 
-const EMAIL_USER = process.env.EMAIL_USER || "";
-const EMAIL_PASS = process.env.EMAIL_PASS || "";
 const APP_NAME = "The Gathering";
 
 function getTransporter() {
-  if (!EMAIL_USER || !EMAIL_PASS) return null;
+  const user = (process.env.EMAIL_USER || "").trim().replace(/^["']|["']$/g, "");
+  const pass = (process.env.EMAIL_PASS || "").trim().replace(/^["']|["']$/g, "");
+  if (!user || !pass) return null;
   return nodemailer.createTransport({
     service: "gmail",
     auth: {
-      user: EMAIL_USER,
-      pass: EMAIL_PASS,
+      user,
+      pass,
     },
   });
 }
@@ -31,13 +31,13 @@ export async function sendOtpEmail(to: string, code: string, purpose: "register"
       : `Mã đặt lại mật khẩu của bạn là: ${code}. Mã có hiệu lực 10 phút.`;
 
   if (!transporter) {
-    console.log(`[Email] (no SMTP) would send to ${to}: ${code}`);
+    console.log(`[Email] OTP không gửi mail – chưa cấu hình EMAIL_USER/EMAIL_PASS trong .env. Mã OTP cho ${to}: ${code}`);
     return false;
   }
 
   try {
     await transporter.sendMail({
-      from: `"${APP_NAME}" <${EMAIL_USER}>`,
+      from: `"${APP_NAME}" <${(process.env.EMAIL_USER || "").trim().replace(/^["']|["']$/g, "")}>`,
       to,
       subject,
       text,
@@ -49,9 +49,10 @@ export async function sendOtpEmail(to: string, code: string, purpose: "register"
         <p>— ${APP_NAME}</p>
       `,
     });
+    console.log(`[Email] Đã gửi OTP đến ${to}`);
     return true;
   } catch (err) {
-    console.error("[Email] send failed:", err);
+    console.error("[Email] Gửi thất bại:", err);
     return false;
   }
 }

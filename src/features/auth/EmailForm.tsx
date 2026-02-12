@@ -18,8 +18,9 @@ export default function EmailForm({ onSuccess, onBack, onAuthSuccess }: Props) {
   const [email, setEmail] = React.useState("");
   const { showToast } = useToast();
 
-  // Xử lý Google Login
+  // Xử lý Google Login – redirect_uri phải trùng với URI đã thêm trong Google Cloud Console
   const googleLogin = useGoogleLogin({
+    redirect_uri: typeof window !== "undefined" ? window.location.origin : undefined,
     onSuccess: async (tokenResponse) => {
       try {
         // Fetch Google profile

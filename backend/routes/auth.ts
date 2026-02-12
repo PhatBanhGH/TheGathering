@@ -8,6 +8,7 @@ import {
   sanitizeString,
   isValidEmail,
   isValidUsername,
+  usernameFromFullName,
 } from "../utils/validators.js";
 import { authRateLimiter } from "../middleware/rateLimiter.js";
 import {
@@ -35,31 +36,36 @@ router.post(
   authRateLimiter,
   async (req: Request, res: Response): Promise<void> => {
     try {
-      // Accept both username and fullName from frontend
-      const rawUsername = sanitizeString(req.body.username || req.body.fullName || "");
-      const username = rawUsername || sanitizeString((req.body.email || "").split("@")[0]);
       const email = sanitizeString(req.body.email || "").toLowerCase();
       const password = req.body.password || "";
       const otp = sanitizeString(req.body.otp || "");
+      const fullName = sanitizeString(req.body.fullName || "").trim();
+      const rawUsername = sanitizeString(req.body.username || "");
+
+      // Tạo username từ họ tên (Phát Bành -> phat_banh) hoặc từ email nếu không có fullName
+      const username = rawUsername
+        ? rawUsername
+        : fullName
+          ? usernameFromFullName(fullName, email)
+          : (email || "").split("@")[0] || "";
+
+      const finalUsername = username.slice(0, 20).replace(/^_+|_+$/g, "") || "user";
 
       // Validate input
-      if (!username || !email || !password) {
-        res
-          .status(400)
-          .json({ message: "Username, email, and password are required" });
+      if (!email || !password) {
+        res.status(400).json({ message: "Email và mật khẩu là bắt buộc." });
         return;
       }
 
-      if (!isValidUsername(username)) {
+      if (!isValidUsername(finalUsername)) {
         res.status(400).json({
-          message:
-            "Username must be 3-20 characters, alphanumeric with underscores only, and cannot start with underscore",
+          message: "Không thể tạo tên đăng nhập từ tên của bạn. Vui lòng thử tên khác hoặc thêm ký tự.",
         });
         return;
       }
 
       if (!isValidEmail(email)) {
-        res.status(400).json({ message: "Invalid email format" });
+        res.status(400).json({ message: "Định dạng email không hợp lệ." });
         return;
       }
 
@@ -67,7 +73,7 @@ router.post(
       const passwordValidation = validatePassword(password);
       if (!passwordValidation.isValid) {
         res.status(400).json({
-          message: "Password validation failed",
+          message: "Mật khẩu chưa đủ mạnh.",
           errors: passwordValidation.errors,
         });
         return;
@@ -76,7 +82,7 @@ router.post(
       // Check for common passwords
       if (isCommonPassword(password)) {
         res.status(400).json({
-          message: "Password is too common. Please choose a stronger password.",
+          message: "Mật khẩu quá phổ biến. Vui lòng chọn mật khẩu khác.",
         });
         return;
       }
@@ -103,24 +109,29 @@ router.post(
         );
       }
 
-      // Check if user exists
-      const existingUser = await User.findOne({
-        $or: [{ email }, { username }],
-      });
+      // Check if user exists (username có thể trùng sau slugify, thêm suffix nếu cần)
+      let uniqueUsername = finalUsername;
+      let suffix = 0;
+      while (await User.findOne({ username: uniqueUsername })) {
+        suffix++;
+        uniqueUsername = `${finalUsername.slice(0, 17)}${suffix}`.slice(0, 20);
+      }
 
-      if (existingUser) {
-        res.status(400).json({ message: "User already exists" });
+      const existingByEmail = await User.findOne({ email });
+      if (existingByEmail) {
+        res.status(400).json({ message: "Email này đã được đăng ký." });
         return;
       }
 
       // Hash password with higher salt rounds for better security
       const hashedPassword = await bcrypt.hash(password, 12);
 
-      // Create user
+      // Create user: username dùng cho hệ thống, displayName là tên hiển thị (Phát Bành)
       const user = new User({
-        username,
+        username: uniqueUsername,
         email,
         password: hashedPassword,
+        displayName: fullName || undefined,
       });
 
       await user.save();
@@ -141,6 +152,7 @@ router.post(
         user: {
           id: user._id,
           username: user.username,
+          displayName: user.displayName || user.username,
           email: user.email,
           avatar: user.avatar,
           role: user.role,

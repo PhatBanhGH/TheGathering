@@ -80,13 +80,13 @@ export function rateLimiter(windowMs: number = 60000, maxRequests: number = 100)
 }
 
 /**
- * Strict rate limiter for authentication endpoints
+ * Rate limiter for authentication endpoints.
+ * Generous enough for signup (check-email → send-otp → register) + login retries.
  */
 const isProd = process.env.NODE_ENV === "production";
-// Local/demo: allow multiple browsers on same machine/IP without tripping 429
 export const authRateLimiter = isProd
-  ? rateLimiter(15 * 60 * 1000, 5) // 5 requests per 15 minutes (prod)
-  : rateLimiter(60 * 1000, 30); // 30 requests per minute (dev/demo)
+  ? rateLimiter(15 * 60 * 1000, 25) // 25 requests per 15 min per IP per endpoint (prod)
+  : rateLimiter(60 * 1000, 30); // 30 per minute (dev)
 
 /**
  * General API rate limiter

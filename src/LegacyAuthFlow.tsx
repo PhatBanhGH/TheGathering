@@ -21,7 +21,7 @@ import SettingsLayout from "./features/settings/SettingsLayout";
 import bannerVideo from "./assets/banner-video.mov";
 
 const GOOGLE_CLIENT_ID =
-  "288750362583-lg6ost2rsqqp6pm5b3tbmm05iv9eaduu.apps.googleusercontent.com";
+  import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || "http://localhost:5001";
 
 function deriveNameFromEmail(email: string) {
@@ -244,8 +244,8 @@ export default function LegacyAuthFlow() {
     return <LandingPage onJoin={handleStartSession} />;
   }
 
-  return (
-    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+  const authContent = (
+    <>
       {/* 2. DASHBOARD */}
       {step === "dashboard" && (
         <DashboardLayout
@@ -365,6 +365,12 @@ export default function LegacyAuthFlow() {
             </div>
           </>
         )}
+    </>
+  );
+
+  return (
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID || "no-client-id-configured"}>
+      {authContent}
     </GoogleOAuthProvider>
   );
 }

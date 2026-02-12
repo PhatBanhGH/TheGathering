@@ -15,33 +15,45 @@ export default function SignUpForm({ email, onSuccess, onBack }: Props) {
   const [password, setPassword] = React.useState("");
   const [showPassword, setShowPassword] = React.useState(false);
 
-  // State kiểm tra độ mạnh mật khẩu
+  // Khớp với backend: 8 ký tự, hoa, thường, số, ký tự đặc biệt
   const [passValidations, setPassValidations] = React.useState({
     minLength: false,
     hasNumber: false,
     hasUpper: false,
     hasLower: false,
-    noSequence: true // Không chứa chuỗi dễ đoán (đơn giản hóa)
+    hasSpecial: false,
+    noSequence: true,
   });
   const [showTooltip, setShowTooltip] = React.useState(false);
   const { showToast } = useToast();
 
-  // Hàm kiểm tra mật khẩu realtime
+  const specialCharRegex = /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/;
+
   React.useEffect(() => {
     setPassValidations({
       minLength: password.length >= 8,
       hasNumber: /\d/.test(password),
       hasUpper: /[A-Z]/.test(password),
       hasLower: /[a-z]/.test(password),
-      noSequence: !/(123|abc|qwerty)/i.test(password) // Ví dụ đơn giản
+      hasSpecial: specialCharRegex.test(password),
+      noSequence: !/(123|abc|qwerty)/i.test(password),
     });
   }, [password]);
 
-  const isFormValid = Object.values(passValidations).every(Boolean) && firstName && lastName;
+  const isPasswordStrong = Object.values(passValidations).every(Boolean);
+  const isFormValid = isPasswordStrong && firstName.trim() && lastName.trim();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!Object.values(passValidations).every(Boolean)) return; // Chặn nếu pass yếu
+    if (!firstName.trim() || !lastName.trim()) {
+      showToast("Vui lòng nhập đầy đủ họ và tên.", { variant: "error" });
+      return;
+    }
+    if (!isPasswordStrong) {
+      showToast("Mật khẩu chưa đủ mạnh. Vui lòng xem yêu cầu bên dưới.", { variant: "error" });
+      setShowTooltip(true);
+      return;
+    }
 
     try {
       const res = await fetch(`${serverUrl}/api/auth/send-otp`, {
@@ -82,7 +94,7 @@ export default function SignUpForm({ email, onSuccess, onBack }: Props) {
         <div style={{ position: 'relative' }}>
           <input 
             type={showPassword ? "text" : "password"} 
-            className={`email-input ${showTooltip && !Object.values(passValidations).every(Boolean) ? 'input-error' : ''}`}
+            className={`email-input ${showTooltip && !isPasswordStrong ? 'input-error' : ''}`}
             placeholder="Mật khẩu" 
             value={password} 
             onChange={e=>setPassword(e.target.value)}
@@ -98,7 +110,7 @@ export default function SignUpForm({ email, onSuccess, onBack }: Props) {
             {showPassword ? <FaEyeSlash /> : <FaEye />}
           </span>
 
-          {/* TOOLTIP VALIDATION (Hiện khi focus hoặc nhập sai) */}
+          {/* TOOLTIP VALIDATION – khớp backend, hiện khi focus hoặc khi bấm Tiếp tục mà pass yếu */}
           {showTooltip && (
             <div className="password-tooltip">
               <p style={{fontWeight: 'bold', marginBottom: 5}}>Mật khẩu phải bao gồm ít nhất:</p>
@@ -115,11 +127,14 @@ export default function SignUpForm({ email, onSuccess, onBack }: Props) {
                 <li className={passValidations.hasLower ? 'valid' : 'invalid'}>
                   {passValidations.hasLower ? <FaCheckCircle/> : <FaTimesCircle/>} 1 chữ cái viết thường
                 </li>
+                <li className={passValidations.hasSpecial ? 'valid' : 'invalid'}>
+                  {passValidations.hasSpecial ? <FaCheckCircle/> : <FaTimesCircle/>} 1 ký tự đặc biệt (!@#$%^&*...)
+                </li>
               </ul>
-              <p style={{fontWeight: 'bold', marginTop: 10, marginBottom: 5}}>Mật khẩu không được bao gồm:</p>
+              <p style={{fontWeight: 'bold', marginTop: 10, marginBottom: 5}}>Không được có:</p>
               <ul>
-                 <li className={passValidations.noSequence ? 'valid' : 'invalid'}>
-                  {passValidations.noSequence ? <FaCheckCircle/> : <FaTimesCircle/>} 4 ký tự liên tiếp (ví dụ "1234")
+                <li className={passValidations.noSequence ? 'valid' : 'invalid'}>
+                  {passValidations.noSequence ? <FaCheckCircle/> : <FaTimesCircle/>} Chuỗi dễ đoán (123, abc, qwerty...)
                 </li>
               </ul>
             </div>
