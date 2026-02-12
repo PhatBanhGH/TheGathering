@@ -46,12 +46,7 @@ export default defineConfig({
         find: "globalThis",
         replacement: fileURLToPath(new URL("./src/polyfills/globalThis.ts", import.meta.url)),
       },
-      {
-        find: "@react-oauth/google",
-        replacement: fileURLToPath(
-          new URL("./src/shims/react-oauth-google.tsx", import.meta.url)
-        ),
-      },
+      // @react-oauth/google alias removed - use real package for Google OAuth
       {
         find: "react-icons/fa",
         replacement: fileURLToPath(
