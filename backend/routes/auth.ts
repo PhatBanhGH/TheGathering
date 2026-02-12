@@ -25,6 +25,7 @@ import {
   deleteUserSessionById,
 } from "../utils/tokenManager.js";
 import { authenticate } from "../middleware/security.js";
+import { sendOtpEmail } from "../utils/email.js";
 
 const router = express.Router();
 
@@ -270,10 +271,13 @@ router.post("/send-otp", authRateLimiter, async (req: Request, res: Response): P
 
     // For registration, we don't care if user already exists on this step;
     // frontend will call /check-email first.
-    await createOtp(email, "register");
+    const code = await createOtp(email, "register");
+    const sent = await sendOtpEmail(email, code, "register");
 
     res.json({
-      message: "Mã xác thực đã được gửi (xem console server trong môi trường dev).",
+      message: sent
+        ? "Mã xác thực đã được gửi đến email của bạn."
+        : "Mã xác thực đã lưu (chưa cấu hình gửi mail – xem console server trong dev).",
       expiresIn: 600,
     });
   } catch (error) {
@@ -301,11 +305,13 @@ router.post("/forgot-password", async (req: Request, res: Response): Promise<voi
       return;
     }
 
-    await createOtp(email, "reset");
+    const code = await createOtp(email, "reset");
+    const sent = await sendOtpEmail(email, code, "reset");
 
     res.json({
-      message:
-        "Nếu email tồn tại, mã đặt lại mật khẩu đã được gửi (xem console server trong môi trường dev).",
+      message: sent
+        ? "Nếu email tồn tại, mã đặt lại mật khẩu đã được gửi đến email."
+        : "Nếu email tồn tại, mã đã lưu (chưa cấu hình gửi mail – xem console trong dev).",
     });
   } catch (error) {
     console.error("Forgot password error:", error);

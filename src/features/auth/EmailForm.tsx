@@ -126,26 +126,25 @@ export default function EmailForm({ onSuccess, onBack, onAuthSuccess }: Props) {
         <span className="relative px-4 bg-white text-sm font-medium text-gray-500">Hoặc tiếp tục với</span>
       </div>
 
-      {/* --- 2. SOCIAL ICONS ĐẸP HƠN, TÁCH RỜI HƠN --- */}
-      <div className="flex justify-center gap-6"> {/* Tăng gap lên 6 */}
+      {/* --- 2. SOCIAL LOGIN (icons + labels so Google always visible) --- */}
+      <div className="flex flex-wrap justify-center gap-4">
         <SocialButton title="SSO" onClick={() => {}}>
-          <FaKey className="text-gray-600" />
+          <FaKey className="text-gray-600" size={22} />
         </SocialButton>
-
         <SocialButton title="Apple" onClick={() => {}}>
-          <FaApple className="text-gray-900" />
+          <FaApple className="text-gray-900" size={22} />
         </SocialButton>
-
         <SocialButton title="Google" onClick={() => googleLogin()}>
-          <FcGoogle />
+          <span className="flex items-center justify-center gap-1.5">
+            <FcGoogle size={22} />
+            <span className="text-xs font-medium text-gray-700">Google</span>
+          </span>
         </SocialButton>
-
         <SocialButton title="Facebook" onClick={() => {}}>
-          <FaFacebook className="text-[#1877F2]" />
+          <FaFacebook className="text-[#1877F2]" size={22} />
         </SocialButton>
-
         <SocialButton title="Microsoft" onClick={() => {}}>
-          <FaMicrosoft className="text-[#F25022]" />
+          <FaMicrosoft className="text-[#F25022]" size={22} />
         </SocialButton>
       </div>
     </div>
