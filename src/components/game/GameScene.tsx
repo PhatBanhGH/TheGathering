@@ -261,8 +261,52 @@ const GameScene = () => {
       }
 
       createOtherPlayer(user: any) {
-        const playerData = PlayerManager.createOtherPlayer(this, user);
+        // Avoid duplicate: nếu đã có (từ users ban đầu hoặc từ socket), chỉ nâng cấp avatar nếu có avatarConfig
+        if (this.otherPlayers.has(user.userId)) {
+          this.ensureOtherPlayerAvatar(user);
+          return;
+        }
+        const playerData = PlayerManager.createOtherPlayer(this, user, { spriteKey: "player", scale: 1 });
         this.otherPlayers.set(user.userId, playerData);
+        this.ensureOtherPlayerAvatar(user);
+      }
+
+      /** Load avatar texture cho remote user và gán vào sprite (đúng outfit, không còn nhầm "người lính") */
+      async ensureOtherPlayerAvatar(user: any) {
+        const avatarConfig = user?.avatarConfig;
+        const userId = user?.userId;
+        if (!avatarConfig || !userId || typeof avatarConfig !== "object") return;
+        const key = `avatar-${userId}`;
+        const entry = this.otherPlayers.get(userId);
+        if (!entry) return;
+
+        const applyTexture = (spriteKey: string, scale: number) => {
+          if (!entry) return;
+          entry.sprite.setTexture(spriteKey, 0);
+          entry.sprite.setScale(scale);
+          const dir = user.direction || "idle-down";
+          const animName = dir.startsWith("idle") ? dir : `walk-${dir}`;
+          const fullAnim = `${spriteKey}-${animName}`;
+          if (this.anims.exists(fullAnim)) entry.sprite.play(fullAnim, true);
+          else {
+            const idle = `${spriteKey}-idle-down`;
+            if (this.anims.exists(idle)) entry.sprite.play(idle, true);
+          }
+        };
+
+        if (this.textures.exists(key)) {
+          applyTexture(key, 0.5);
+          return;
+        }
+        try {
+          const canvas = await composeAvatarSpriteSheetCanvas({ avatarConfig });
+          if (!canvas) return;
+          (this.textures as any).addSpriteSheet(key, canvas, { frameWidth: 64, frameHeight: 64 });
+          AnimationManager.createCharacterAnimations(this, key, { layout: "lpc", frameWidth: 64, frameHeight: 64 });
+          applyTexture(key, 0.5);
+        } catch (e) {
+          console.warn("Failed to compose remote avatar, keeping default:", userId, e);
+        }
       }
 
       updateOtherPlayer(userId: string, position: { x: number; y: number }, direction?: string) {

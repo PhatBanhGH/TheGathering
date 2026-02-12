@@ -321,7 +321,7 @@ io.on("connection", (socket) => {
   // User joins with user data
   socket.on("user-join", async (data) => {
     try {
-      const { userId, username, roomId, avatar, position } = data;
+      const { userId, username, roomId, avatar, position, avatarConfig } = data;
       const startPosition =
         position &&
           typeof position.x === "number" &&
@@ -383,12 +383,13 @@ io.on("connection", (socket) => {
         return;
       }
 
-      // Store user connection
+      // Store user connection (avatarConfig for in-game custom sprites)
       connectedUsers.set(socket.id, {
         userId,
         username: username.trim(),
         roomId,
         avatar,
+        avatarConfig: avatarConfig || undefined,
         position: startPosition, // Use client-provided or default position
         socketId: socket.id,
       });
@@ -513,6 +514,7 @@ io.on("connection", (socket) => {
           userId: member.userId,
           username: member.username,
           avatar: member.avatar,
+          avatarConfig: (connectedUser as any)?.avatarConfig,
           position: connectedUser?.position || { x: 0, y: 0 },
           direction: connectedUser?.direction,
           status: userStatus,
@@ -570,6 +572,7 @@ io.on("connection", (socket) => {
               userId: member.userId,
               username: member.username,
               avatar: member.avatar,
+              avatarConfig: (connectedUser as any)?.avatarConfig,
               position: connectedUser?.position || { x: 0, y: 0 },
               direction: connectedUser?.direction,
               status: userStatus,
@@ -590,11 +593,12 @@ io.on("connection", (socket) => {
 
       console.log(`Broadcasting user-joined for ${username} (${userId}) to room ${roomId}`);
 
-      // Notify others in room - IMMEDIATELY broadcast user-joined
+      // Notify others in room - IMMEDIATELY broadcast user-joined (avatarConfig for correct in-game sprite)
       io.to(roomId).emit("user-joined", {
         userId,
         username: username.trim(),
         avatar,
+        avatarConfig: avatarConfig || undefined,
         position: startPosition,
         status: "online", // Explicitly set status
         role: roleToSet,
@@ -612,7 +616,7 @@ io.on("connection", (socket) => {
       io.to(roomId).emit("room-users", usersToBroadcast);
       console.log(`✅ Broadcasted room-users event to room ${roomId}`);
 
-      // Send all players positions including the new user
+      // Send all players positions including the new user (avatarConfig for correct in-game sprite)
       const allPlayersInRoom = Array.from(roomUsers.get(roomId))
         .map((id) => {
           const u = connectedUsers.get(id);
@@ -621,6 +625,7 @@ io.on("connection", (socket) => {
               userId: u.userId,
               username: u.username,
               avatar: u.avatar,
+              avatarConfig: (u as any).avatarConfig,
               position: u.position,
               direction: u.direction,
             };
@@ -691,6 +696,7 @@ io.on("connection", (socket) => {
                 userId: u.userId,
                 username: u.username,
                 avatar: u.avatar,
+                avatarConfig: (u as any).avatarConfig,
                 position: u.position,
                 direction: u.direction,
               };

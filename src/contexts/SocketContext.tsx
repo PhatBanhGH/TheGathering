@@ -169,6 +169,7 @@ export const SocketProvider = ({
         username: resolvedUsername,
         roomId,
         avatar: storedAvatar,
+        avatarConfig: avatarConfig || undefined,
         position: storedPosition,
       });
     });

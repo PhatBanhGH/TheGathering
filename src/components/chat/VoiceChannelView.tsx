@@ -170,11 +170,18 @@ const VoiceChannelView = ({
     toggleVideo,
     toggleAudio,
     startMedia,
+    stopMedia,
     setVoiceChannelUsers,
   } = useWebRTC();
   const { voiceChannels } = useChat();
 
   const [voiceUsers, setVoiceUsers] = useState<VoiceUser[]>([]);
+
+  // Rời kênh: tắt cam/mic rồi mới gọi onLeave
+  const handleLeave = () => {
+    stopMedia();
+    onLeave();
+  };
 
   // Get current voice channel
   const currentVoiceChannel = voiceChannels.find((vc) => vc.id === channelId);
@@ -335,7 +342,7 @@ const VoiceChannelView = ({
         </div>
         <button
           className="px-4 py-2 bg-red-500/10 text-red-300 border border-red-500/20 rounded-xl cursor-pointer text-sm font-medium transition-all duration-200 hover:bg-red-500/15 hover:text-red-200 hover:-translate-y-px active:translate-y-0"
-          onClick={onLeave}
+          onClick={handleLeave}
         >
           Rời khỏi
         </button>
@@ -519,7 +526,7 @@ const VoiceChannelView = ({
         <div className="flex-1 flex justify-center">
           <button
             className="flex items-center justify-center gap-2 px-5 py-2.5 bg-red-500/10 text-red-300 border border-red-500/20 rounded-xl cursor-pointer text-sm font-medium transition-all duration-200 min-w-[44px] h-11 hover:bg-red-500/15 hover:text-red-200"
-            onClick={onLeave}
+            onClick={handleLeave}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
               <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />

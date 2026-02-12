@@ -86,6 +86,10 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
   const [cameraOwner, setCameraOwner] = useState<{ tabId: string; userId: string } | null>(null);
 
   const peersRef = useRef<Map<string, PeerConnection>>(new Map());
+  // Keep ref in sync with state so skip logic and others see latest peers
+  useEffect(() => {
+    peersRef.current = peers;
+  }, [peers]);
   // Ref lưu danh sách user hiện tại để so sánh
   const voiceChannelUsersRef = useRef<string[]>([]);
   const sfuContextRef = useRef<{ roomId: string; channelId: string } | null>(null);
@@ -587,6 +591,60 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
               mediaStates: Array<{ userId: string; audioEnabled: boolean; videoEnabled: boolean }>;
             }>("sfu:join", { roomId, channelId, userId: currentUser.userId });
 
+            // Queue for newProducer events that arrive before recvTransport is ready
+            const pendingNewProducers: Array<{ producerId: string; userId: string; kind: "audio" | "video" }> = [];
+            const onNewProducer = async (p: { producerId: string; userId: string; kind: "audio" | "video" }) => {
+              if (recvTransportRef.current) {
+                try {
+                  await consumeProducer(p.producerId, p.userId);
+                } catch (e) {
+                  console.warn("sfu:newProducer consume failed, will retry:", p, e);
+                  setTimeout(() => consumeProducer(p.producerId, p.userId).catch((err) => console.error("Retry consume failed:", err)), 800);
+                }
+              } else {
+                pendingNewProducers.push(p);
+              }
+            };
+            const onProducerClosed = (d: { producerId: string }) => {
+              const mapping = producerToConsumerRef.current.get(d.producerId);
+              if (!mapping) return;
+              const { consumerId, userId: remoteUserId } = mapping;
+              producerToConsumerRef.current.delete(d.producerId);
+              const consumer = consumersRef.current.get(consumerId);
+              if (consumer) {
+                try {
+                  consumer.close();
+                } catch {
+                  // ignore
+                }
+                consumersRef.current.delete(consumerId);
+              }
+              const ms = remoteStreamsRef.current.get(remoteUserId);
+              if (ms) {
+                ms.getTracks().forEach((t) => {
+                  if (t.readyState === "ended") {
+                    try {
+                      ms.removeTrack(t);
+                    } catch {
+                      // ignore
+                    }
+                  }
+                });
+                if (ms.getTracks().length === 0) {
+                  remoteStreamsRef.current.delete(remoteUserId);
+                  setPeers((prev) => {
+                    const next = new Map(prev);
+                    next.delete(remoteUserId);
+                    return next;
+                  });
+                }
+              }
+            };
+            socket.off("sfu:newProducer", onNewProducer as any);
+            socket.on("sfu:newProducer", onNewProducer as any);
+            socket.off("sfu:producerClosed", onProducerClosed as any);
+            socket.on("sfu:producerClosed", onProducerClosed as any);
+
             // Seed media state map for UI (including self + existing users)
             setMediaStateByUser((prev) => {
               const next = { ...prev };
@@ -707,11 +765,14 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
             }
 
             const consumeProducer = async (producerId: string, remoteUserId: string) => {
-              if (!deviceRef.current || !recvTransportRef.current) return;
+              const device = deviceRef.current;
+              const recvTransport = recvTransportRef.current;
+              if (!device || !recvTransport) return;
               if (remoteUserId === currentUser.userId) return;
               if (producerToConsumerRef.current.has(producerId)) return;
 
-              const resp = await socketRequest<{
+              try {
+                const resp = await socketRequest<{
                 ok: true;
                 params: { id: string; producerId: string; kind: "audio" | "video"; rtpParameters: any; userId: string };
               }>("sfu:consume", {
@@ -722,87 +783,57 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
                 rtpCapabilities: device.rtpCapabilities,
               });
 
-              const consumer = await (recvTransport as any).consume({
+                const consumer = await (recvTransport as any).consume({
                 id: resp.params.id,
                 producerId: resp.params.producerId,
                 kind: resp.params.kind,
                 rtpParameters: resp.params.rtpParameters,
               });
 
-              consumersRef.current.set(consumer.id, consumer);
-              producerToConsumerRef.current.set(producerId, { consumerId: consumer.id, userId: remoteUserId });
+                consumersRef.current.set(consumer.id, consumer);
+                producerToConsumerRef.current.set(producerId, { consumerId: consumer.id, userId: remoteUserId });
 
-              let ms = remoteStreamsRef.current.get(remoteUserId);
-              if (!ms) {
-                ms = new MediaStream();
-                remoteStreamsRef.current.set(remoteUserId, ms);
+                let ms = remoteStreamsRef.current.get(remoteUserId);
+                if (!ms) {
+                  ms = new MediaStream();
+                  remoteStreamsRef.current.set(remoteUserId, ms);
+                }
+                ms.addTrack(consumer.track);
+
+                setPeers((prev) => {
+                  const next = new Map(prev);
+                  next.set(remoteUserId, { userId: remoteUserId, peer: null, stream: ms! });
+                  return next;
+                });
+
+                await socketRequest("sfu:resume", { roomId, channelId, consumerId: consumer.id });
+              } catch (e: any) {
+                console.error("❌ consume failed:", { producerId, remoteUserId, error: e?.message || e });
+                throw e;
               }
-              ms.addTrack(consumer.track);
-
-              // Update UI peers map
-              setPeers((prev) => {
-                const next = new Map(prev);
-                next.set(remoteUserId, { userId: remoteUserId, peer: null, stream: ms! });
-                return next;
-              });
-
-              await socketRequest("sfu:resume", { roomId, channelId, consumerId: consumer.id });
             };
 
             // Consume existing producers
             for (const p of joinResp.producers) {
-              await consumeProducer(p.producerId, p.userId);
+              try {
+                await consumeProducer(p.producerId, p.userId);
+              } catch (e) {
+                console.warn("Consume existing producer failed, retrying once:", p, e);
+                await new Promise((r) => setTimeout(r, 600));
+                await consumeProducer(p.producerId, p.userId).catch((err) => console.error("Retry consume failed:", err));
+              }
             }
 
-            // Listen for new producers / closed producers
-            const onNewProducer = async (p: { producerId: string; userId: string; kind: "audio" | "video" }) => {
-              await consumeProducer(p.producerId, p.userId);
-            };
-
-            const onProducerClosed = (d: { producerId: string }) => {
-              const mapping = producerToConsumerRef.current.get(d.producerId);
-              if (!mapping) return;
-              const { consumerId, userId: remoteUserId } = mapping;
-              producerToConsumerRef.current.delete(d.producerId);
-
-              const consumer = consumersRef.current.get(consumerId);
-              if (consumer) {
-                try {
-                  consumer.close();
-                } catch {
-                  // ignore
-                }
-                consumersRef.current.delete(consumerId);
+            while (pendingNewProducers.length > 0) {
+              const p = pendingNewProducers.shift()!;
+              try {
+                await consumeProducer(p.producerId, p.userId);
+              } catch (e) {
+                console.warn("Consume pending newProducer failed:", p, e);
               }
+            }
 
-              const ms = remoteStreamsRef.current.get(remoteUserId);
-              if (ms) {
-                // Remove ended tracks
-                ms.getTracks().forEach((t) => {
-                  if (t.readyState === "ended") {
-                    try {
-                      ms.removeTrack(t);
-                    } catch {
-                      // ignore
-                    }
-                  }
-                });
-                // If no tracks left, remove user entry
-                if (ms.getTracks().length === 0) {
-                  remoteStreamsRef.current.delete(remoteUserId);
-                  setPeers((prev) => {
-                    const next = new Map(prev);
-                    next.delete(remoteUserId);
-                    return next;
-                  });
-                }
-              }
-            };
-
-            socket.off("sfu:newProducer", onNewProducer as any);
-            socket.on("sfu:newProducer", onNewProducer as any);
-            socket.off("sfu:producerClosed", onProducerClosed as any);
-            socket.on("sfu:producerClosed", onProducerClosed as any);
+            // sfu:newProducer / sfu:producerClosed listeners registered above
           } catch (e: any) {
             console.error("❌ SFU connect error:", e);
           }
