@@ -40,12 +40,15 @@ export default defineConfig({
     ],
   },
   optimizeDeps: {
-    include: ["events", "util", "stream-browserify", "buffer"],
+    include: ["events", "util", "stream-browserify", "buffer", "@react-oauth/google"],
     esbuildOptions: {
       define: {
         global: "globalThis",
       },
     },
+  },
+  ssr: {
+    noExternal: ["@react-oauth/google"],
   },
 
   server: {
