@@ -1,10 +1,10 @@
-import React, { createContext, useContext } from "react";
+import * as React from "react";
 
 type GoogleOAuthContextValue = {
   clientId?: string;
 };
 
-const GoogleOAuthContext = createContext<GoogleOAuthContextValue>({});
+const GoogleOAuthContext = React.createContext<GoogleOAuthContextValue>({});
 
 type GoogleOAuthProviderProps = {
   clientId?: string;
