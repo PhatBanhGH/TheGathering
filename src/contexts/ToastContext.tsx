@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode, useCallback } from "react";
+import * as React from "react";
 
 type ToastVariant = "success" | "error" | "info" | "warning";
 
@@ -14,13 +14,18 @@ interface ToastInternal extends ToastOptions {
 }
 
 interface ToastContextValue {
-  showToast: (message: string, options?: Omit<ToastOptions, "description">) => void;
+  showToast: (
+    message: string,
+    options?: Omit<ToastOptions, "description">
+  ) => void;
 }
 
-const ToastContext = createContext<ToastContextValue | undefined>(undefined);
+const ToastContext = React.createContext<ToastContextValue | undefined>(
+  undefined
+);
 
 export function useToast(): ToastContextValue {
-  const ctx = useContext(ToastContext);
+  const ctx = React.useContext(ToastContext);
   if (!ctx) {
     throw new Error("useToast must be used within ToastProvider");
   }
@@ -29,10 +34,14 @@ export function useToast(): ToastContextValue {
 
 let idCounter = 1;
 
-export function ToastProvider({ children }: { children: ReactNode }) {
-  const [toasts, setToasts] = useState<ToastInternal[]>([]);
+export function ToastProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const [toasts, setToasts] = React.useState<ToastInternal[]>([]);
 
-  const showToast = useCallback(
+  const showToast = React.useCallback(
     (message: string, options?: Omit<ToastOptions, "description">) => {
       const id = idCounter++;
       const next: ToastInternal = {
