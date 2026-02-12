@@ -38,6 +38,12 @@ export default defineConfig({
       },
       { find: "buffer", replacement: "buffer" },
       {
+        find: "react/jsx-runtime",
+        replacement: fileURLToPath(
+          new URL("./src/shims/jsx-runtime.ts", import.meta.url)
+        ),
+      },
+      {
         find: "@react-oauth/google",
         replacement: fileURLToPath(
           new URL("./src/shims/react-oauth-google.tsx", import.meta.url)
@@ -58,7 +64,7 @@ export default defineConfig({
     ],
   },
   optimizeDeps: {
-    include: ["events", "util", "stream-browserify", "buffer", "react/jsx-runtime"],
+    include: ["events", "util", "stream-browserify", "buffer"],
     esbuildOptions: {
       define: {
         global: "globalThis",
