@@ -8,7 +8,9 @@ import {
   useRef,
   useCallback,
 } from "react";
-import Peer, { SignalData } from "simple-peer";
+import SimplePeer from "simple-peer";
+type Peer = SimplePeer.Instance;
+type SignalData = SimplePeer.SignalData;
 import { Device } from "mediasoup-client";
 import type { types as MediasoupTypes } from "mediasoup-client";
 import { useSocket } from "./SocketContext";
@@ -32,7 +34,7 @@ function isSameUserList(a: string[], b: string[]) {
 
 interface PeerConnection {
   // In SFU mode, `peer` is not used (kept optional to preserve UI shape).
-  peer?: Peer.Instance | null;
+  peer?: Peer | null;
   userId: string;
   stream?: MediaStream;
 }
@@ -535,7 +537,7 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
     (userId: string, initiator: boolean, stream: MediaStream) => {
       console.log(`🛠 Creating peer for ${userId} (Initiator: ${initiator})`);
 
-      const peer = new Peer({
+      const peer = new SimplePeer({
         initiator,
         trickle: true,
         stream,
@@ -547,7 +549,7 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
         },
       });
 
-      peer.on("signal", (data) => {
+      peer.on("signal", (data: SignalData) => {
         if (!socket || !currentUser) return;
         socket.emit(initiator ? "webrtc-offer" : "webrtc-answer", {
           targetUserId: userId,
@@ -555,7 +557,7 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
         });
       });
 
-      peer.on("stream", (remoteStream) => {
+      peer.on("stream", (remoteStream: MediaStream) => {
         console.log(`🎥 Received stream from ${userId} (${remoteStream.id})`);
         setPeers((prev) => {
           const newMap = new Map(prev);
@@ -574,7 +576,7 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
         });
       });
 
-      peer.on("error", (err) => {
+      peer.on("error", (err: Error) => {
         console.error(`❌ Peer error ${userId}:`, err);
         // Log error details for debugging
         console.error(`Error details:`, {
