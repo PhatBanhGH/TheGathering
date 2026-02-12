@@ -8,16 +8,14 @@ import {
   useRef,
   useCallback,
 } from "react";
-import * as SimplePeer from "simple-peer";
-const Peer = (SimplePeer as any).default || SimplePeer;
-type PeerInstance = InstanceType<typeof Peer>;
-type SignalData = any;
+// simple-peer removed - using SFU (mediasoup) only for production stability
 import { Device } from "mediasoup-client";
 import type { types as MediasoupTypes } from "mediasoup-client";
 import { useSocket } from "./SocketContext";
 import { cameraManager } from "../utils/cameraManager";
 
-const USE_SFU = (import.meta as any).env?.VITE_USE_SFU !== "false";
+// Force SFU mode for production (no simple-peer/Node stream polyfills needed)
+const USE_SFU = true;
 
 type Transport = MediasoupTypes.Transport;
 type Producer = MediasoupTypes.Producer;
@@ -34,8 +32,8 @@ function isSameUserList(a: string[], b: string[]) {
 }
 
 interface PeerConnection {
-  // In SFU mode, `peer` is not used (kept optional to preserve UI shape).
-  peer?: PeerInstance | null;
+  // In SFU mode, `peer` is not used (simple-peer removed)
+  peer?: null;
   userId: string;
   stream?: MediaStream;
 }
@@ -375,7 +373,7 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
     cameraManager.setStream(null);
     cameraManager.releaseCameraLock();
     
-    peersRef.current.forEach((p) => p.peer?.destroy?.());
+    // Simple-peer cleanup removed - SFU only
     setPeers(new Map());
     peersRef.current = new Map();
     voiceChannelUsersRef.current = []; // Reset list khi stop
@@ -486,15 +484,7 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
         }
         localStream.addTrack(videoTrack);
 
-        peersRef.current.forEach((peerConn) => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const sender = (peerConn.peer as any)?._pc
-            ?.getSenders?.()
-            .find((s: RTCRtpSender) => s.track?.kind === "video");
-          if (sender && videoTrack) {
-            sender.replaceTrack(videoTrack);
-          }
-        });
+        // Screen share track replacement handled by SFU (mediasoup)
 
         setIsScreenSharing(true);
         videoTrack.onended = () => stopScreenShare();
@@ -516,15 +506,7 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
         }
         localStream.addTrack(cameraVideoTrack);
 
-        peersRef.current.forEach((peerConn) => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const sender = (peerConn.peer as any)?._pc
-            ?.getSenders?.()
-            .find((s: RTCRtpSender) => s.track?.kind === "video");
-          if (sender && cameraVideoTrack) {
-            sender.replaceTrack(cameraVideoTrack);
-          }
-        });
+        // Screen share track replacement handled by SFU (mediasoup)
 
         setIsScreenSharing(false);
       }
@@ -533,109 +515,14 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // --- 2. PEER CREATION ---
+  // --- 2. PEER CREATION (DISABLED - SFU only) ---
+  // simple-peer removed - using mediasoup SFU only for production stability
   const createPeer = useCallback(
-    (userId: string, initiator: boolean, stream: MediaStream) => {
-      console.log(`🛠 Creating peer for ${userId} (Initiator: ${initiator})`);
-
-      const peer = new Peer({
-        initiator,
-        trickle: true,
-        stream,
-        config: {
-          iceServers: [
-            { urls: "stun:stun.l.google.com:19302" },
-            { urls: "stun:stun1.l.google.com:19302" },
-          ],
-        },
-      });
-
-      peer.on("signal", (data: SignalData) => {
-        if (!socket || !currentUser) return;
-        socket.emit(initiator ? "webrtc-offer" : "webrtc-answer", {
-          targetUserId: userId,
-          [initiator ? "offer" : "answer"]: data,
-        });
-      });
-
-      peer.on("stream", (remoteStream: MediaStream) => {
-        console.log(`🎥 Received stream from ${userId} (${remoteStream.id})`);
-        setPeers((prev) => {
-          const newMap = new Map(prev);
-          if (newMap.has(userId)) {
-            const oldPeerData = newMap.get(userId)!;
-            // Tạo object mới để React nhận ra thay đổi (tránh mutate trực tiếp)
-            newMap.set(userId, {
-              ...oldPeerData,
-              stream: remoteStream,
-            });
-          } else {
-            // Trường hợp hiếm: stream đến trước khi ta kịp set entry
-            newMap.set(userId, { peer, userId, stream: remoteStream });
-          }
-          return newMap;
-        });
-      });
-
-      peer.on("error", (err: Error) => {
-        console.error(`❌ Peer error ${userId}:`, err);
-        // Log error details for debugging
-        console.error(`Error details:`, {
-          name: err.name,
-          message: err.message,
-        });
-        
-        // Don't auto-reconnect here - let the connection logic handle it
-        // Auto-reconnection can cause issues with signaling
-      });
-
-      // Track connection state
-      let connectionTimeout: NodeJS.Timeout | null = null;
-      
-      peer.on("connect", () => {
-        console.log(`✅ Peer connected ${userId}`);
-        // Clear timeout when connected
-        if (connectionTimeout) {
-          clearTimeout(connectionTimeout);
-          connectionTimeout = null;
-        }
-      });
-
-      // Add timeout for peer connection (30 seconds)
-      connectionTimeout = setTimeout(() => {
-        if (peersRef.current.has(userId)) {
-          const peerConn = peersRef.current.get(userId);
-          // Check if peer is connected
-          const isConnected = (peerConn?.peer as any)?._pc?.connectionState === "connected";
-          if (!isConnected) {
-            console.warn(`⏱️ Peer connection timeout for ${userId}, destroying...`);
-            peerConn?.peer?.destroy();
-            setPeers((prev) => {
-              const newMap = new Map(prev);
-              newMap.delete(userId);
-              return newMap;
-            });
-          }
-        }
-      }, 30000);
-
-      peer.on("close", () => {
-        console.log(`🔌 Peer closed ${userId}`);
-        // Clear timeout on close
-        if (connectionTimeout) {
-          clearTimeout(connectionTimeout);
-          connectionTimeout = null;
-        }
-        setPeers((prev) => {
-          const newMap = new Map(prev);
-          newMap.delete(userId);
-          return newMap;
-        });
-      });
-
-      return peer;
+    (_userId: string, _initiator: boolean, _stream: MediaStream) => {
+      console.warn("createPeer called but simple-peer is disabled (SFU mode only)");
+      return null;
     },
-    [currentUser, socket]
+    []
   );
 
   // --- 3. CONNECTION LOGIC (FIXED LOOP) ---
@@ -946,63 +833,8 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      // 1. Kết nối với người mới
-      userIds.forEach((userId) => {
-        if (userId === currentUser.userId) return;
-        if (!peersRef.current.has(userId)) {
-          const isInitiator = currentUser.userId < userId;
-          console.log(
-            `✨ Connecting to new user ${userId} (Initiator: ${isInitiator})`
-          );
-          const newPeer = createPeer(userId, isInitiator, localStream);
-          setPeers((prev) =>
-            new Map(prev).set(userId, { peer: newPeer, userId })
-          );
-        }
-      });
-
-      // 2. Xóa người cũ
-      peersRef.current.forEach((conn, userId) => {
-        if (!userIds.includes(userId) && userId !== currentUser.userId) {
-          console.log(`🗑 User ${userId} left. Destroying peer.`);
-          try {
-            conn.peer?.destroy();
-          } catch (error) {
-            console.warn(`Error destroying peer for ${userId}:`, error);
-          }
-          setPeers((prev) => {
-            const newMap = new Map(prev);
-            newMap.delete(userId);
-            return newMap;
-          });
-        }
-      });
-
-      // 3. Reconnect failed peers (check connection state)
-      peersRef.current.forEach((conn, userId) => {
-        if (userIds.includes(userId) && userId !== currentUser.userId) {
-          try {
-            const pc = (conn.peer as any)?._pc;
-            if (pc) {
-              const connectionState = pc.connectionState;
-              if (connectionState === "failed" || connectionState === "disconnected") {
-                console.log(`🔄 Peer ${userId} is ${connectionState}, attempting to reconnect...`);
-                // Destroy old peer and recreate
-                conn.peer?.destroy();
-                const isInitiator = currentUser.userId < userId;
-                const newPeer = createPeer(userId, isInitiator, localStream);
-                setPeers((prev) => {
-                  const newMap = new Map(prev);
-                  newMap.set(userId, { peer: newPeer, userId });
-                  return newMap;
-                });
-              }
-            }
-          } catch (error) {
-            console.warn(`Error checking/reconnecting peer ${userId}:`, error);
-          }
-        }
-      });
+      // Simple-peer P2P path disabled - SFU only
+      // All peer connections handled by mediasoup SFU above
     },
     [socket, currentUser, localStream, createPeer]
   );
@@ -1027,76 +859,8 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [localStream, setVoiceChannelUsers]);
 
-  // --- 4. SIGNALING HANDLERS ---
-  useEffect(() => {
-    if (USE_SFU) return;
-    if (!socket || !localStream || !currentUser) return;
-
-    const handleOffer = ({
-      fromUserId,
-      offer,
-    }: {
-      fromUserId: string;
-      offer: SignalData;
-    }) => {
-      // Nếu đã có peer, signal offer vào đó
-      if (peersRef.current.has(fromUserId)) {
-        console.log(`📥 Re-signaling offer to existing peer ${fromUserId}`);
-        peersRef.current.get(fromUserId)?.peer?.signal(offer);
-        return;
-      }
-      // Nếu chưa có, tạo peer mới
-      console.log(
-        `🆕 Creating non-initiator peer for ${fromUserId} from Offer`
-      );
-      const newPeer = createPeer(fromUserId, false, localStream);
-      newPeer.signal(offer);
-      setPeers((prev) =>
-        new Map(prev).set(fromUserId, { peer: newPeer, userId: fromUserId })
-      );
-    };
-
-    const handleAnswer = ({
-      fromUserId,
-      answer,
-    }: {
-      fromUserId: string;
-      answer: SignalData;
-    }) => {
-      const peerConn = peersRef.current.get(fromUserId);
-      if (peerConn) {
-        console.log(`📥 Received Answer from ${fromUserId}`);
-        peerConn.peer?.signal(answer);
-      } else {
-        console.warn(
-          `⚠️ Received answer from ${fromUserId} but peer not found`
-        );
-      }
-    };
-
-    const handleIceCandidate = ({
-      fromUserId,
-      candidate,
-    }: {
-      fromUserId: string;
-      candidate: SignalData;
-    }) => {
-      const peerConn = peersRef.current.get(fromUserId);
-      if (peerConn) {
-        peerConn.peer?.signal(candidate);
-      }
-    };
-
-    socket.on("webrtc-offer", handleOffer);
-    socket.on("webrtc-answer", handleAnswer);
-    socket.on("webrtc-ice-candidate", handleIceCandidate);
-
-    return () => {
-      socket.off("webrtc-offer", handleOffer);
-      socket.off("webrtc-answer", handleAnswer);
-      socket.off("webrtc-ice-candidate", handleIceCandidate);
-    };
-  }, [socket, localStream, currentUser, createPeer]);
+  // --- 4. SIGNALING HANDLERS (DISABLED - SFU only) ---
+  // Simple-peer signaling handlers removed - SFU handles all signaling
 
   // --- SFU: media state sync listeners ---
   useEffect(() => {
@@ -1265,14 +1029,7 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
         localStream.getTracks().forEach((track) => track.stop());
       }
       
-      // Destroy all peer connections
-      peersRef.current.forEach((conn) => {
-        try {
-          conn.peer?.destroy?.();
-        } catch (error) {
-          console.warn("Error destroying peer on cleanup:", error);
-        }
-      });
+      // Simple-peer cleanup removed - SFU only
       
       // Release camera lock
       cameraManager.releaseCameraLock();

@@ -1,7 +1,6 @@
 // CRITICAL: Import polyfills FIRST before any other imports
 import "./polyfills/module"; // Must be first - provides global.module for CJS libs
-import "./polyfills/process"; // Must be second - provides process.nextTick for simple-peer
-// events package is now used directly via vite.config.ts alias
+// process polyfill removed - SFU (mediasoup) only, no simple-peer needed
 
 // console.log moved down
 

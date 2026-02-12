@@ -113,7 +113,7 @@ const AppPage = () => {
       <ThemeProvider>
         <SocketProvider username={username} roomId={roomId}>
           <MapProvider>
-            {/* <WebRTCProvider> */}
+            <WebRTCProvider>
               <ChatProvider roomId={roomId}>
                 <ObjectProvider>
                   <EventProvider>
@@ -171,7 +171,7 @@ const AppPage = () => {
                   </EventProvider>
                 </ObjectProvider>
               </ChatProvider>
-            {/* </WebRTCProvider> */}
+            </WebRTCProvider>
           </MapProvider>
         </SocketProvider>
       </ThemeProvider>

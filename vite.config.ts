@@ -26,14 +26,11 @@ export default defineConfig({
     sourcemap: true,
     // Ensure Rollup's CommonJS handling sees pnpm's nested node_modules
     commonjsOptions: {
-      include: [/node_modules/, /node_modules\/\.pnpm/, /simple-peer/, /util-deprecate/],
+      include: [/node_modules/, /node_modules\/\.pnpm/],
       transformMixedEsModules: true,
     },
     rollupOptions: {
-      output: {
-        // Inject module polyfill at the start of each chunk
-        banner: `if (typeof module === "undefined") { var module = { exports: {} }; }`,
-      },
+      // Module polyfill banner removed - SFU only, no simple-peer needed
     },
   },
   define: {
@@ -43,46 +40,12 @@ export default defineConfig({
   resolve: {
     // Đảm bảo Vite/Rollup chỉ dùng một bản React duy nhất
     dedupe: ["react", "react-dom"],
-    // Forced CJS resolution removed to fix @emotion/is-prop-valid
+    // Node polyfills removed - SFU (mediasoup) only, no simple-peer needed
     alias: [
-
-      {
-        find: "util",
-        replacement: fileURLToPath(new URL("./src/polyfills/util.ts", import.meta.url)),
-      },
-      {
-        find: "events",
-        replacement: fileURLToPath(new URL("./src/polyfills/events.js", import.meta.url)),
-      },
-      {
-        find: "stream",
-        replacement: fileURLToPath(new URL("./src/polyfills/stream.js", import.meta.url)),
-      },
-      {
-        find: /stream-browserify/,
-        replacement: fileURLToPath(new URL("./src/polyfills/stream.js", import.meta.url)),
-      },
-      {
-        find: "string_decoder",
-        replacement: fileURLToPath(new URL("./src/polyfills/string_decoder.js", import.meta.url)),
-      },
-      {
-        find: "inherits",
-        replacement: fileURLToPath(new URL("./src/polyfills/inherits.js", import.meta.url)),
-      },
-      {
-        find: "util",
-        replacement: fileURLToPath(new URL("./src/polyfills/util.js", import.meta.url)),
-      },
-      {
-        find: "util-deprecate",
-        replacement: fileURLToPath(new URL("./src/polyfills/util_deprecate.js", import.meta.url)),
-      },
       {
         find: "globalThis",
         replacement: fileURLToPath(new URL("./src/polyfills/globalThis.ts", import.meta.url)),
       },
-      { find: "buffer", replacement: "buffer" },
       {
         find: "@react-oauth/google",
         replacement: fileURLToPath(
@@ -104,7 +67,7 @@ export default defineConfig({
     ],
   },
   optimizeDeps: {
-    include: ["react", "react-dom", "events", "util", "buffer", "string_decoder", "safe-buffer", "simple-peer"],
+    include: ["react", "react-dom"],
     esbuildOptions: {
       define: {
         global: "globalThis",
