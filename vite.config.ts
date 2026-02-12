@@ -37,18 +37,21 @@ export default defineConfig({
         replacement: fileURLToPath(new URL("./src/polyfills/globalThis.ts", import.meta.url)),
       },
       { find: "buffer", replacement: "buffer" },
+      {
+        find: "@react-oauth/google",
+        replacement: fileURLToPath(
+          new URL("./src/shims/react-oauth-google.tsx", import.meta.url)
+        ),
+      },
     ],
   },
   optimizeDeps: {
-    include: ["events", "util", "stream-browserify", "buffer", "@react-oauth/google"],
+    include: ["events", "util", "stream-browserify", "buffer"],
     esbuildOptions: {
       define: {
         global: "globalThis",
       },
     },
-  },
-  ssr: {
-    noExternal: ["@react-oauth/google"],
   },
 
   server: {
