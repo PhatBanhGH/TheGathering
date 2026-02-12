@@ -53,6 +53,10 @@ export default defineConfig({
       },
     },
   },
+  ssr: {
+    // Đảm bảo Vite bundle/react-icons thay vì externalize để tránh lỗi default export
+    noExternal: ["react-icons"],
+  },
 
   server: {
     port: 5173,
