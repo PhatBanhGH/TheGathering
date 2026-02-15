@@ -13,18 +13,9 @@ import "./index.css";
 import { preventDoubleTapZoom } from "./utils/helpers";
 import { ToastProvider } from "./contexts/ToastContext";
 
-console.log("Main.tsx: Starting execution");
-console.log("Main.tsx: Imports done");
-console.log("Main.tsx: Imports done");
-
-// Prevent double tap zoom on mobile
-preventDoubleTapZoom();
-
 const rootElement = document.getElementById("root");
-console.log("Main.tsx: Root element found:", rootElement);
 
 if (rootElement) {
-  console.log("Main.tsx: Creating root");
   try {
     ReactDOM.createRoot(rootElement).render(
       <React.StrictMode>
@@ -33,10 +24,8 @@ if (rootElement) {
             <App />
           </ToastProvider>
         </BrowserRouter>
-        {/* <div style={{ color: 'red', fontSize: '24px' }}>DEBUG MODE</div> */}
       </React.StrictMode>
     );
-    console.log("Main.tsx: Render called");
   } catch (e) {
     console.error("Main.tsx: Render crashed", e);
   }

@@ -57,6 +57,7 @@ export const SocketProvider = ({
   const currentUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
+    console.log("SocketProvider Effect Triggered. RoomId:", roomId, "Username:", username);
     const newSocket = io(
       import.meta.env.VITE_SERVER_URL || "http://localhost:5001",
       {
@@ -182,7 +183,7 @@ export const SocketProvider = ({
     newSocket.on("room-users", (roomUsers: User[]) => {
       console.log("📥 Received room-users event:", roomUsers.length, "users");
       console.log("📥 Users from server:", roomUsers.map(u => ({ userId: u.userId, username: u.username, status: (u as any).status })));
-      
+
       // IMPORTANT:
       // Backend currently emits "room-users" WITHOUT the current user (to reduce noise).
       // That means in a fresh room with only you, roomUsers can be [].
@@ -205,11 +206,11 @@ export const SocketProvider = ({
             setCurrentUser((cu) =>
               cu
                 ? {
-                    ...cu,
-                    role: ((user as any).role || (cu as any).role || "member") as
-                      | "admin"
-                      | "member",
-                  }
+                  ...cu,
+                  role: ((user as any).role || (cu as any).role || "member") as
+                    | "admin"
+                    | "member",
+                }
                 : cu
             );
             return;
@@ -244,23 +245,23 @@ export const SocketProvider = ({
           setCurrentUser((cu) =>
             cu
               ? {
-                  ...cu,
-                  role: ((user as any).role || (cu as any).role || "member") as
-                    | "admin"
-                    | "member",
-                }
+                ...cu,
+                role: ((user as any).role || (cu as any).role || "member") as
+                  | "admin"
+                  | "member",
+              }
               : cu
           );
           return prev;
         }
-        
+
         // Check if user already exists (could be offline)
         const existingIndex = prev.findIndex((u) => u.userId === user.userId);
         if (existingIndex >= 0) {
           // Update existing user to online IMMEDIATELY (realtime)
           const updated = [...prev];
-          updated[existingIndex] = { 
-            ...updated[existingIndex], 
+          updated[existingIndex] = {
+            ...updated[existingIndex],
             ...user,
             status: (user as any).status || "online" as const,
             role: ((user as any).role || updated[existingIndex].role || "member") as "admin" | "member",
@@ -298,16 +299,16 @@ export const SocketProvider = ({
           console.log("Ignoring user-left for current user");
           return prev;
         }
-        
+
         // Check if user exists in list
         const existingIndex = prev.findIndex((u) => u.userId === data.userId);
-        
+
         if (existingIndex >= 0) {
           // Mark existing user as offline IMMEDIATELY (realtime update)
           const updated = [...prev];
-          updated[existingIndex] = { 
-            ...updated[existingIndex], 
-            status: "offline" as const 
+          updated[existingIndex] = {
+            ...updated[existingIndex],
+            status: "offline" as const
           };
           console.log(`Marked user ${data.userId} (${data.username}) as offline - REALTIME`);
           return updated;
@@ -360,13 +361,13 @@ export const SocketProvider = ({
       setUsers((prev) => {
         const updatedUsers = [...prev];
         const onlineUserIds = new Set(allPlayers.map(p => p.userId));
-        
+
         // Track users that were marked offline by user-left event (preserve their offline status)
         const offlineUsersFromLeftEvent = new Set(
           prev.filter(u => u.status === "offline" && u.userId !== currentUser?.userId)
             .map(u => u.userId)
         );
-        
+
         allPlayers.forEach((player) => {
           if (player.userId !== currentUser?.userId) {
             const existingIndex = updatedUsers.findIndex(
@@ -388,7 +389,7 @@ export const SocketProvider = ({
             }
           }
         });
-        
+
         // Mark users not in allPlayers as offline (but preserve offline status from user-left event)
         updatedUsers.forEach((user, index) => {
           if (user.userId !== currentUser?.userId && !onlineUserIds.has(user.userId)) {
@@ -398,7 +399,7 @@ export const SocketProvider = ({
             }
           }
         });
-        
+
         return updatedUsers;
       });
     });

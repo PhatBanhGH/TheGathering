@@ -40,7 +40,7 @@ const Homepage = () => {
           </div>
           
           <h1 className="text-6xl font-extrabold leading-tight text-gray-900 mb-6 tracking-tight max-md:text-4xl">
-            People + knowledge.<br />
+            Office + knowledge.<br />
             All in one place.
           </h1>
           

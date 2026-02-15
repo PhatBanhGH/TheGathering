@@ -223,7 +223,12 @@ const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
               </div>
 
               <div className="mb-5">
-                <label className="block mb-2 text-sm font-medium text-gray-300">Avatar Color</label>
+                <label
+                  htmlFor="settings-avatar-color"
+                  className="block mb-2 text-sm font-medium text-gray-300"
+                >
+                  Avatar Color
+                </label>
                 <div className="flex items-center gap-4">
                   <div
                     className="w-16 h-16 rounded-full flex items-center justify-center text-2xl font-semibold text-white border-[3px] border-gray-700"
@@ -232,6 +237,7 @@ const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
                     {username.charAt(0).toUpperCase() || "U"}
                   </div>
                   <input
+                    id="settings-avatar-color"
                     type="color"
                     value={avatarColor}
                     onChange={(e) => setAvatarColor(e.target.value)}
@@ -241,8 +247,14 @@ const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
               </div>
 
               <div className="mb-5">
-                <label className="block mb-2 text-sm font-medium text-gray-300">Status</label>
+                <label
+                  htmlFor="settings-status"
+                  className="block mb-2 text-sm font-medium text-gray-300"
+                >
+                  Status
+                </label>
                 <select
+                  id="settings-status"
                   value={status}
                   onChange={(e) => setStatus(e.target.value)}
                   className="w-full px-3 py-2.5 bg-gray-900 border border-gray-700 rounded-md text-gray-50 text-sm focus:outline-none focus:border-indigo-600"
@@ -290,8 +302,14 @@ const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
               </div>
 
               <div className="mb-5">
-                <label className="block mb-2 text-sm font-medium text-gray-300">Camera</label>
+                <label
+                  htmlFor="settings-camera"
+                  className="block mb-2 text-sm font-medium text-gray-300"
+                >
+                  Camera
+                </label>
                 <select
+                  id="settings-camera"
                   value={selectedCamera}
                   onChange={(e) => setSelectedCamera(e.target.value)}
                   className="w-full px-3 py-2.5 bg-gray-900 border border-gray-700 rounded-md text-gray-50 text-sm focus:outline-none focus:border-indigo-600 mb-2"
@@ -312,8 +330,14 @@ const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
               </div>
 
               <div className="mb-5">
-                <label className="block mb-2 text-sm font-medium text-gray-300">Microphone</label>
+                <label
+                  htmlFor="settings-microphone"
+                  className="block mb-2 text-sm font-medium text-gray-300"
+                >
+                  Microphone
+                </label>
                 <select
+                  id="settings-microphone"
                   value={selectedMicrophone}
                   onChange={(e) => setSelectedMicrophone(e.target.value)}
                   className="w-full px-3 py-2.5 bg-gray-900 border border-gray-700 rounded-md text-gray-50 text-sm focus:outline-none focus:border-indigo-600 mb-2"
@@ -334,8 +358,14 @@ const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
               </div>
 
               <div className="mb-5">
-                <label className="block mb-2 text-sm font-medium text-gray-300">Speaker</label>
+                <label
+                  htmlFor="settings-speaker"
+                  className="block mb-2 text-sm font-medium text-gray-300"
+                >
+                  Speaker
+                </label>
                 <select
+                  id="settings-speaker"
                   value={selectedSpeaker}
                   onChange={(e) => setSelectedSpeaker(e.target.value)}
                   className="w-full px-3 py-2.5 bg-gray-900 border border-gray-700 rounded-md text-gray-50 text-sm focus:outline-none focus:border-indigo-600 mb-2"
@@ -388,7 +418,7 @@ const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
                 </div>
                 <div className="flex items-center justify-between p-3 bg-gray-900 rounded-md border border-gray-700">
                   <kbd className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs font-mono text-gray-50 shadow">Ctrl</kbd> + <kbd className="bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs font-mono text-gray-50 shadow">F</kbd>
-                  <span className="text-gray-300 text-sm">Search People</span>
+                  <span className="text-gray-300 text-sm">Search Office</span>
                 </div>
               </div>
 

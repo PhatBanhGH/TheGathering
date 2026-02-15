@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSocket } from "../../contexts/SocketContext";
 
 interface InviteModalProps {
@@ -13,13 +13,7 @@ const InviteModal = ({ isOpen, onClose, roomId }: InviteModalProps) => {
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (isOpen && roomId) {
-      generateInviteLink();
-    }
-  }, [isOpen, roomId]);
-
-  const generateInviteLink = async () => {
+  const generateInviteLink = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch(
@@ -41,7 +35,13 @@ const InviteModal = ({ isOpen, onClose, roomId }: InviteModalProps) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [roomId]);
+
+  useEffect(() => {
+    if (isOpen && roomId) {
+      void generateInviteLink();
+    }
+  }, [isOpen, roomId, generateInviteLink]);
 
   const handleCopy = async () => {
     if (!inviteLink) return;
@@ -75,7 +75,25 @@ const InviteModal = ({ isOpen, onClose, roomId }: InviteModalProps) => {
 
   if (!isOpen) return null;
 
-  const currentUserCount = users.length + (currentUser ? 1 : 0);
+  // Đếm người trong phòng, tránh double-count currentUser
+  const uniqueUsers = (() => {
+    const byId = new Map<string, unknown>();
+    users.forEach((u) => {
+      if (u && typeof (u as any).userId === "string") {
+        byId.set((u as any).userId, u);
+      }
+    });
+    if (
+      currentUser &&
+      typeof (currentUser as any).userId === "string" &&
+      !byId.has((currentUser as any).userId)
+    ) {
+      byId.set((currentUser as any).userId, currentUser);
+    }
+    return Array.from(byId.values());
+  })();
+
+  const currentUserCount = uniqueUsers.length;
   const maxUsers = 20;
 
   return (
@@ -126,11 +144,15 @@ const InviteModal = ({ isOpen, onClose, roomId }: InviteModalProps) => {
           </div>
 
           <div className="mb-5">
-            <label className="block text-sm font-semibold text-slate-100 mb-2">
+            <label
+              htmlFor="invite-link-input"
+              className="block text-sm font-semibold text-slate-100 mb-2"
+            >
               Link mời
             </label>
             <div className="flex gap-2">
               <input
+                id="invite-link-input"
                 type="text"
                 value={loading ? "Đang tạo link..." : inviteLink}
                 readOnly

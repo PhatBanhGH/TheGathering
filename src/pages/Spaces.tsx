@@ -67,13 +67,13 @@ const Spaces = () => {
   const handleJoinRoom = (room: SavedRoom) => {
     localStorage.setItem("roomId", room.id);
     localStorage.setItem("roomName", room.name);
-    navigate(`/lobby?room=${encodeURIComponent(room.id)}`);
+    navigate(`/setup/${encodeURIComponent(room.id)}`);
   };
 
   const handleJoinServerRoom = (room: ServerRoom) => {
     localStorage.setItem("roomId", room.roomId);
     localStorage.setItem("roomName", room.name);
-    navigate(`/lobby?room=${encodeURIComponent(room.roomId)}`);
+    navigate(`/setup/${encodeURIComponent(room.roomId)}`);
   };
 
   const handleCreateNew = () => {

@@ -4,6 +4,9 @@ import LegacyAuthFlow from "./LegacyAuthFlow";
 import Lobby from "./pages/Lobby";
 import AppPage from "./pages/App";
 import Library from "./pages/Library";
+import AvatarPage from "./pages/AvatarPage";
+import Spaces from "./pages/Spaces";
+import SetupPage from "./pages/SetupPage";
 import PortalDashboard from "./portal/dashboard/PortalDashboard";
 import AdminDashboard from "./portal/admin/AdminDashboard";
 import RequireAuth from "./portal/routing/RequireAuth";
@@ -13,8 +16,15 @@ export default function App() {
   return (
     <Routes>
       <Route path="/lobby" element={<Lobby />} />
-      <Route path="/spaces" element={<Navigate to="/app/chat" replace />} />
-      <Route path="/app/*" element={<AppPage />} />
+      <Route path="/spaces" element={<Spaces />} />
+      <Route path="/setup/:roomId" element={<SetupPage />} />
+      <Route path="/app/chat" element={<AppPage />} />
+      {/* Updated app route to accept roomId */}
+      <Route path="/app/:roomId" element={<AppPage />} />
+      <Route path="/app" element={<Navigate to="/spaces" replace />} />
+
+      <Route path="/avatar" element={<AvatarPage />} />
+
       <Route
         path="/library"
         element={

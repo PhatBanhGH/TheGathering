@@ -99,7 +99,7 @@ const ReactionPanel = ({ isOpen, onClose }: ReactionPanelProps) => {
             }`}
             onClick={() => setSelectedCategory("people")}
           >
-            😊 People
+            🏢 Office
           </button>
           <button
             className={`flex-1 px-2.5 py-1.5 bg-black/5 dark:bg-white/5 border-none rounded-lg text-black/60 dark:text-white/70 text-xs font-medium cursor-pointer transition-all ${

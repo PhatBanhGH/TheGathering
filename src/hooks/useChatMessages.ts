@@ -24,23 +24,22 @@ export const useChatMessages = ({
       try {
         const roomId = localStorage.getItem("roomId") || "default-room";
         const response = await fetch(
-          `${
-            import.meta.env.VITE_SERVER_URL || "http://localhost:5001"
+          `${import.meta.env.VITE_SERVER_URL || "http://localhost:5001"
           }/api/chat/history/${roomId}?type=global&limit=100`
         );
         if (response.ok) {
           const data = await response.json();
           // Handle both old format (array) and new format (object with messages property)
-          const historyMessages: ChatMessage[] = Array.isArray(data) 
-            ? data 
+          const historyMessages: ChatMessage[] = Array.isArray(data)
+            ? data
             : (data.messages || []);
-          
+
           // Ensure it's an array
           if (!Array.isArray(historyMessages)) {
             console.warn("Invalid message history format, expected array");
             return;
           }
-          
+
           console.log("Loaded messages from database:", historyMessages.length);
           setMessages((prev) => {
             const existingIds = new Set(prev.map((m) => m.id));
@@ -62,7 +61,7 @@ export const useChatMessages = ({
     };
 
     loadMessages();
-  }, [socket, currentUser]);
+  }, [socket, currentUser?.userId]);
 
   // Setup socket listeners for realtime messages
   useEffect(() => {

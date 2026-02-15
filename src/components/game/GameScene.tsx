@@ -350,7 +350,7 @@ const GameScene = () => {
       }
       // Socket cleanup is handled by SocketHandlers cleanup function
     };
-  }, [currentUser, socket, mapData]);
+  }, [socket, mapData, currentUser?.userId]);
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>

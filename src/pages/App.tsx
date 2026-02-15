@@ -1,6 +1,7 @@
 import { useEffect, useState, lazy, Suspense } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, useParams } from "react-router-dom";
 
+// Lazy load heavy components for better code splitting
 // Lazy load heavy components for better code splitting
 const GameScene = lazy(() => import("../components/game/GameScene"));
 const Sidebar = lazy(() => import("../components/Sidebar"));
@@ -10,7 +11,10 @@ const Chat = lazy(() => import("../components/chat/Chat"));
 const MapLayers = lazy(() => import("../components/game/MapLayers"));
 const ChatPage = lazy(() => import("./ChatPage"));
 const EventsPage = lazy(() => import("./EventsPage"));
+const LibraryApp = lazy(() => import("./LibraryApp"));
 const ProfilePage = lazy(() => import("./ProfilePage"));
+const AdminDashboard = lazy(() => import("../portal/admin/AdminDashboard"));
+
 import {
   SocketProvider,
   WebRTCProvider,
@@ -22,19 +26,30 @@ import {
   NotificationProvider,
 } from "../contexts";
 import ErrorBoundary from "../components/ErrorBoundary";
-import { SearchModal } from "../components/modals"; // Ensure this is correct
+import { SearchModal } from "../components/modals";
 import { analytics } from "../utils/analytics";
 
 const AppPage = () => {
+  const { roomId: paramRoomId } = useParams();
   const [username, setUsername] = useState("");
-  const [roomId, setRoomId] = useState("default-room");
-  const [isJoined, setIsJoined] = useState(false);
+  // Use paramRoomId if available, otherwise fallback to localStorage or default
+  const [roomId, setRoomId] = useState(() => {
+    const saved = localStorage.getItem("roomId");
+    const isReserved = ["chat", "events", "profile", "admin", "library"].includes(paramRoomId || "");
+    if (paramRoomId && !isReserved) return paramRoomId;
+    if (saved && !["chat", "events", "profile", "admin", "library"].includes(saved)) return saved;
+    return "default-room";
+  });
   const [showSearchModal, setShowSearchModal] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
-    // Check authentication - prioritize Lobby data
+    // console.log("AppPage Mounted...");
+  }, []);
+
+  useEffect(() => {
+    // Check authentication
     const savedName = localStorage.getItem("userName");
     if (savedName) {
       setUsername(savedName);
@@ -42,42 +57,34 @@ const AppPage = () => {
       const token = localStorage.getItem("token");
       const userStr = localStorage.getItem("user");
       if (!token || !userStr) {
-        navigate("/lobby");
+        navigate("/spaces");
         return;
       }
       try {
         const user = JSON.parse(userStr);
         setUsername(user.username || user.email);
       } catch (e) {
-        navigate("/lobby");
+        navigate("/spaces");
       }
     }
   }, [navigate]);
 
   useEffect(() => {
-    const storedRoom = localStorage.getItem("roomId");
-    if (storedRoom) {
-      setRoomId(storedRoom);
+    const isReserved = ["chat", "events", "profile", "admin", "library"].includes(paramRoomId || "");
+    if (paramRoomId && !isReserved) {
+      setRoomId(paramRoomId);
+      localStorage.setItem("roomId", paramRoomId);
     }
-  }, []);
+  }, [paramRoomId]);
 
-  useEffect(() => {
-    if (username && roomId) {
-      setIsJoined(true);
-      // Track room join
-      analytics.trackUserAction("room_joined", {
-        roomId,
-        username,
-      });
-    }
-  }, [username, roomId]);
+  // ... (rest of effects)
 
   // Track page views
   useEffect(() => {
     analytics.trackPageView(location.pathname);
   }, [location.pathname]);
 
-  // Keyboard shortcut for search (Ctrl/Cmd + K)
+  // Keyboard shortcut...
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "k") {
@@ -88,25 +95,27 @@ const AppPage = () => {
         setShowSearchModal(false);
       }
     };
-
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [showSearchModal]);
 
-  if (!isJoined || !username) {
+  const isChatPage = location.pathname.includes("/chat");
+  const isProfilePage = location.pathname.includes("/profile");
+  const isEventsPage = location.pathname.includes("/events");
+  const isLibraryPage = location.pathname.includes("/library");
+  const isAdminPage = location.pathname.includes("/admin");
+
+  if (!username) {
+    // Still need username/auth basically
     return (
       <div className="flex justify-center items-center w-screen h-screen bg-obsidian text-white">
         <div className="flex flex-col items-center p-8 rounded-2xl bg-white/5 backdrop-blur-lg border border-white/10 shadow-2xl">
           <div className="w-12 h-12 border-2 border-violet-500 border-t-transparent rounded-full animate-spin mb-4 shadow-[0_0_15px_rgba(139,92,246,0.5)]"></div>
-          <h1 className="text-lg font-outfit tracking-wide font-medium text-slate-200">Initializing...</h1>
+          <h1 className="text-lg font-outfit tracking-wide font-medium text-slate-200">Authenticating...</h1>
         </div>
       </div>
     );
   }
-
-  const isChatPage = location.pathname === "/app/chat";
-  const isProfilePage = location.pathname.startsWith("/app/profile");
-  const isEventsPage = location.pathname === "/app/events";
 
   return (
     <ErrorBoundary>
@@ -118,20 +127,10 @@ const AppPage = () => {
                 <ObjectProvider>
                   <EventProvider>
                     <NotificationProvider>
-                      <div className="flex w-screen h-screen overflow-hidden bg-obsidian text-slate-100 font-sans selection:bg-violet-500/30">
-                        {/* Global Background Mesh */}
+                      <div className="flex w-screen h-screen overflow-hidden bg-[#202124] text-slate-100 font-sans selection:bg-violet-500/30">
                         <div className="fixed inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(120,0,255,0.1),rgba(0,0,0,0)_50%)] pointer-events-none" />
-                        
-                        <Suspense
-                          fallback={
-                            <div className="flex items-center justify-center w-full h-full bg-obsidian">
-                             <div className="flex flex-col items-center">
-                                <div className="w-10 h-10 border-2 border-fuchsia-500 border-t-transparent rounded-full animate-spin mb-3"></div>
-                                <div className="text-xs text-slate-500 uppercase tracking-widest">Loading Interface</div>
-                              </div>
-                            </div>
-                          }
-                        >
+
+                        <Suspense fallback={<div className="flex items-center justify-center w-full h-full bg-obsidian">...</div>}>
                           <Sidebar />
                           {isChatPage ? (
                             <>
@@ -142,13 +141,19 @@ const AppPage = () => {
                             <>
                               <EventsPage />
                             </>
+                          ) : isLibraryPage ? (
+                            <>
+                              <LibraryApp />
+                            </>
                           ) : isProfilePage ? (
                             <>
                               <ProfilePage />
                             </>
+                          ) : isAdminPage ? (
+                            <AdminDashboard />
                           ) : (
                             <>
-                              <div className="flex-1 relative flex flex-col overflow-hidden bg-[#0a0a0c] m-2 rounded-2xl border border-white/5 shadow-2xl">
+                              <div className="flex-1 relative flex flex-col overflow-hidden m-0 p-0">
                                 <GameScene />
                                 <ControlBar />
                               </div>
@@ -159,12 +164,11 @@ const AppPage = () => {
                           )}
                         </Suspense>
                       </div>
-                      
                       {showSearchModal && (
                         <SearchModal
-                            isOpen={showSearchModal}
-                            onClose={() => setShowSearchModal(false)}
-                            roomId={roomId}
+                          isOpen={showSearchModal}
+                          onClose={() => setShowSearchModal(false)}
+                          roomId={roomId}
                         />
                       )}
                     </NotificationProvider>

@@ -99,7 +99,7 @@ const NotificationProvider = ({ children }: { children: ReactNode }) => {
     } finally {
       setLoading(false);
     }
-  }, [currentUser, serverUrl]);
+  }, [currentUser?.userId, serverUrl]);
 
   useEffect(() => {
     fetchNotifications();

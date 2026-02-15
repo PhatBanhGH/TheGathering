@@ -62,29 +62,32 @@ export default function LegacyAuthFlow() {
     const token = localStorage.getItem("token");
     if (token) {
       setAuthToken(token);
-      // Check if user has completed avatar setup and auto-navigate
+      // Kiểm tra thông tin user và điều hướng thẳng sang giao diện mới
       authFetch(`${SERVER_URL}/api/user/me`)
         .then(async (res) => {
           if (!res.ok) {
-            // If refresh also fails, treat as logged out.
             throw new Error(`me failed (${res.status})`);
           }
           return res.json();
         })
         .then((data) => {
-          // Lưu user vào localStorage để DashboardLayout có thể load ngay
           if (data) {
             localStorage.setItem("user", JSON.stringify(data));
           }
-          
+
           const hasAvatarConfig =
             data.avatarConfig && Object.keys(data.avatarConfig).length > 0;
-          const hasDisplayName = data.displayName && data.displayName.trim().length > 0;
+          const hasDisplayName =
+            data.displayName && data.displayName.trim().length > 0;
 
-          // Nếu đã setup avatar + displayName -> vào dashboard luôn
-          // Nếu chưa -> bắt user vào avatar editor trước
           setIsLanding(false);
-          setStep(hasAvatarConfig && hasDisplayName ? "dashboard" : "avatar_selection");
+          // Nếu thiếu avatar hoặc displayName thì bắt user vào trang avatar pixel mới
+          if (!hasAvatarConfig || !hasDisplayName) {
+            navigate("/avatar", { replace: true });
+          } else {
+            // Ngược lại đưa thẳng vào luồng workspace mới
+            navigate("/spaces", { replace: true });
+          }
         })
         .catch((err) => {
           console.error("Lỗi kiểm tra thông tin user:", err);
@@ -170,7 +173,11 @@ export default function LegacyAuthFlow() {
           user.displayName && String(user.displayName).trim().length > 0;
 
         setIsLanding(false);
-        setStep(hasAvatarConfig && hasDisplayName ? "dashboard" : "avatar_selection");
+        if (!hasAvatarConfig || !hasDisplayName) {
+          navigate("/avatar", { replace: true });
+        } else {
+          navigate("/spaces", { replace: true });
+        }
         return;
       } else {
         // Fallback to minimal user shape
@@ -186,9 +193,9 @@ export default function LegacyAuthFlow() {
       console.warn("Could not hydrate user profile for route-based pages:", e);
     }
 
-    // If we can't confirm profile state, send user to avatar editor to complete setup.
+    // Nếu không chắc trạng thái profile, ưu tiên đưa user sang editor avatar mới
     setIsLanding(false);
-    setStep("avatar_selection");
+    navigate("/avatar", { replace: true });
   };
 
   const handleLogout = () => {
@@ -237,7 +244,7 @@ export default function LegacyAuthFlow() {
   };
 
   const handleEnterWorkspace = () => {
-    // Route-based join room flow (Lobby -> /app)
+    // Sau khi đã có avatar + profile, người dùng mới vào bước setup cam/mic (Lobby)
     navigate("/lobby");
   };
 
