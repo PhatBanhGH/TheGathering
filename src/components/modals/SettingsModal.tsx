@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useSocket } from "../../contexts/SocketContext";
 import { useWebRTC } from "../../contexts/WebRTCContext";
+import { useDeviceSettings } from "../../hooks/useDeviceSettings";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -22,18 +23,16 @@ const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
   const [username, setUsername] = useState("");
   const [avatarColor, setAvatarColor] = useState("#4f46e5");
   const [status, setStatus] = useState("Available");
-  const [devices, setDevices] = useState<{
-    cameras: MediaDeviceInfo[];
-    microphones: MediaDeviceInfo[];
-    speakers: MediaDeviceInfo[];
-  }>({
-    cameras: [],
-    microphones: [],
-    speakers: [],
-  });
-  const [selectedCamera, setSelectedCamera] = useState<string>("");
-  const [selectedMicrophone, setSelectedMicrophone] = useState<string>("");
-  const [selectedSpeaker, setSelectedSpeaker] = useState<string>("");
+  
+  const {
+    devices,
+    selectedCamera,
+    selectedMicrophone,
+    selectedSpeaker,
+    setSelectedCamera,
+    setSelectedMicrophone,
+    setSelectedSpeaker,
+  } = useDeviceSettings(isOpen, activeTab);
 
   useEffect(() => {
     if (currentUser) {
@@ -45,36 +44,6 @@ const SettingsModal = ({ isOpen, onClose }: SettingsModalProps) => {
       }
     }
   }, [currentUser]);
-
-  useEffect(() => {
-    if (isOpen && activeTab === "audio") {
-      loadDevices();
-    }
-  }, [isOpen, activeTab]);
-
-  const loadDevices = async () => {
-    try {
-      const deviceList = await navigator.mediaDevices.enumerateDevices();
-      const cameras = deviceList.filter((d) => d.kind === "videoinput");
-      const microphones = deviceList.filter((d) => d.kind === "audioinput");
-      const speakers = deviceList.filter((d) => d.kind === "audiooutput");
-
-      setDevices({ cameras, microphones, speakers });
-
-      // Set defaults
-      if (cameras.length > 0 && !selectedCamera) {
-        setSelectedCamera(cameras[0].deviceId);
-      }
-      if (microphones.length > 0 && !selectedMicrophone) {
-        setSelectedMicrophone(microphones[0].deviceId);
-      }
-      if (speakers.length > 0 && !selectedSpeaker) {
-        setSelectedSpeaker(speakers[0].deviceId);
-      }
-    } catch (error) {
-      console.error("Error loading devices:", error);
-    }
-  };
 
   const handleSaveProfile = () => {
     if (!username.trim()) {

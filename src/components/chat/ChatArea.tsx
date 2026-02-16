@@ -1,8 +1,9 @@
-import { useRef, useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import MessageItem from "./MessageItem";
 import DateSeparator from "./DateSeparator";
 import SearchModal from "../modals/SearchModal";
 import FileUpload from "./FileUpload";
+import { useAutoScroll } from "../../hooks/useAutoScroll";
 
 interface Message {
   id: string;
@@ -65,7 +66,7 @@ const ChatArea = ({
   inputPlaceholder,
   typingUsers = [],
 }: ChatAreaProps) => {
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useAutoScroll(messages);
   const [inputValue, setInputValue] = useState("");
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [showSearch, setShowSearch] = useState(false);
@@ -78,10 +79,6 @@ const ChatArea = ({
       url: string;
     }>
   >([]);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
 
   const handleSend = () => {
     if (!inputValue.trim() && attachments.length === 0) return;
@@ -103,7 +100,14 @@ const ChatArea = ({
     // File is being uploaded, FileUpload component will handle it
   };
 
-  const handleUploadComplete = (fileUrl: string, fileData: any) => {
+  interface FileData {
+    filename: string;
+    originalName: string;
+    mimeType: string;
+    size: number;
+  }
+
+  const handleUploadComplete = (fileUrl: string, fileData: FileData) => {
     setAttachments((prev) => [
       ...prev,
       {
@@ -343,6 +347,8 @@ const ChatArea = ({
           <button
             className="w-5 h-5 flex items-center justify-center rounded-full hover:bg-black/20 text-slate-400 transition-colors"
             onClick={() => setReplyingTo(null)}
+            aria-label="Cancel reply"
+            title="Cancel reply"
           >
             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
@@ -377,6 +383,8 @@ const ChatArea = ({
                     <button
                         className="w-6 h-6 rounded bg-[#2B2D31] text-red-400 flex items-center justify-center hover:bg-[#1E1F22]"
                         onClick={() => removeAttachment(index)}
+                        aria-label={`Remove attachment ${att.originalName}`}
+                        title={`Remove ${att.originalName}`}
                     >
                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
@@ -395,7 +403,11 @@ const ChatArea = ({
           />
            
            <div className="flex items-center">
-               <button className="mr-3 text-slate-400 hover:text-slate-200 transition-colors">
+               <button 
+                 className="mr-3 text-slate-400 hover:text-slate-200 transition-colors"
+                 aria-label="Add attachment"
+                 title="Add attachment"
+               >
                    <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
                </button>
 
@@ -413,11 +425,19 @@ const ChatArea = ({
                />
                
                <div className="flex items-center gap-3 ml-3">
-                   <button className="text-slate-400 hover:text-slate-200 transition-colors">
+                   <button 
+                     className="text-slate-400 hover:text-slate-200 transition-colors"
+                     aria-label="Add GIF"
+                     title="Add GIF"
+                   >
                      <span className="font-bold text-[10px] border-2 border-current rounded px-1 py-0.5">GIF</span>
                    </button>
                    
-                   <button className="text-slate-400 hover:text-slate-200 transition-colors">
+                   <button 
+                     className="text-slate-400 hover:text-slate-200 transition-colors"
+                     aria-label="Add emoji"
+                     title="Add emoji"
+                   >
                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                    </button>
                </div>

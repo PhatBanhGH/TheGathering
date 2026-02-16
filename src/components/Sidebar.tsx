@@ -1,9 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useSocket } from "../contexts/SocketContext";
 import { InviteModal } from "./modals";
-import NotificationCenter from "./NotificationCenter";
 import SettingsModal from "./modals/SettingsModal";
+import { SidebarTabs } from "./sidebar/SidebarTabs";
+import { SidebarHeader } from "./sidebar/SidebarHeader";
+import { useUserList } from "../hooks/useUserList";
 
 const Sidebar = () => {
   const { users, currentUser, isConnected, socket } = useSocket();
@@ -28,60 +30,17 @@ const Sidebar = () => {
     setActiveTab(getActiveTab());
   }, [location.pathname]);
 
-  // Merge user list like chat panel: unique by username, prioritize online
+  // Use custom hook for user list logic
   const {
     onlineUsers,
     offlineUsers,
     filteredOnlineUsers,
     filteredOfflineUsers,
-  } = (() => {
-    const byUsername = new Map<
-      string,
-      (typeof users)[0] | typeof currentUser | null | undefined
-    >();
-
-    users.forEach((u) => {
-      if (!u) return;
-      const existing = byUsername.get(u.username);
-      const status = (u as any).status || "online";
-      const existingStatus = (existing as any)?.status || "offline";
-      if (!existing || (existingStatus === "offline" && status === "online")) {
-        byUsername.set(u.username, u);
-      }
-    });
-
-    if (currentUser) {
-      const existing = byUsername.get(currentUser.username);
-      const existingStatus = (existing as any)?.status || "offline";
-      if (!existing || existingStatus === "offline") {
-        byUsername.set(currentUser.username, {
-          ...currentUser,
-          status: "online" as const,
-        });
-      }
-    }
-
-    const merged = Array.from(byUsername.values()).filter(
-      (u): u is NonNullable<typeof u> => !!u
-    );
-
-    const online = merged.filter((u) => (u as any).status !== "offline");
-    const offline = merged.filter((u) => (u as any).status === "offline");
-
-    const filteredOnline = online.filter((u) =>
-      u.username.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-    const filteredOffline = offline.filter((u) =>
-      u.username.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-
-    return {
-      onlineUsers: online,
-      offlineUsers: offline,
-      filteredOnlineUsers: filteredOnline,
-      filteredOfflineUsers: filteredOffline,
-    };
-  })();
+  } = useUserList({
+    users,
+    currentUser,
+    searchQuery,
+  });
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const RESERVED_ROUTES = ["chat", "events", "profile", "admin", "library"];
@@ -272,38 +231,10 @@ const Sidebar = () => {
       {activeTab === "users" && (
         <div className="flex-1 flex flex-col overflow-hidden animate-slideRight">
           {/* Header */}
-          <div className="h-16 px-5 border-b border-white/10 flex justify-between items-center bg-white/[0.02]">
-            <h2 className="m-0 text-lg font-display font-semibold text-white tracking-tight whitespace-nowrap overflow-hidden text-ellipsis">
-              {projectName}
-            </h2>
-            <div className="flex items-center gap-2">
-              <button
-                className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-slate-300 hover:bg-white/10 hover:border-white/30 hover:text-white text-xs font-semibold transition-colors"
-                onClick={() => navigate("/avatar")}
-                title="Đổi avatar pixel"
-              >
-                AV
-              </button>
-              <button
-                className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-slate-300 hover:bg-white/10 hover:border-white/30 hover:text-white transition-colors"
-                onClick={() => setShowSettingsModal(true)}
-                title="Settings"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.8}
-                    d="M10.325 4.317a1 1 0 011.35-.447l.447.224a1 1 0 00.894 0l.447-.224a1 1 0 011.35.447l.224.447a1 1 0 00.553.553l.447.224a1 1 0 01.447 1.35l-.224.447a1 1 0 000 .894l.224.447a1 1 0 01-.447 1.35l-.447.224a1 1 0 00-.553.553l-.224.447a1 1 0 01-1.35.447l-.447-.224a1 1 0 00-.894 0l-.447.224a1 1 0 01-1.35-.447l-.224-.447a1 1 0 00-.553-.553l-.447-.224a1 1 0 01-.447-1.35l.224-.447a1 1 0 000-.894l-.224-.447a1 1 0 01.447-1.35l.447-.224a1 1 0 00.553-.553l.224-.447z"
-                  />
-                  <circle cx="12" cy="12" r="2.5" />
-                </svg>
-              </button>
-              <div className="transform scale-90">
-                <NotificationCenter />
-              </div>
-            </div>
-          </div>
+          <SidebarHeader
+            projectName={projectName}
+            onSettingsClick={() => setShowSettingsModal(true)}
+          />
 
           {/* Invite Card */}
           <div className="p-4 mx-4 mt-4 mb-2 rounded-2xl bg-gradient-to-br from-violet-500/10 to-fuchsia-500/10 border border-white/10">

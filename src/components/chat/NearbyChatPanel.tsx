@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useSocket } from '../../contexts/SocketContext';
 import { getNearbyUsers, calculateDistanceInMeters, getAvatarColor } from '../../utils';
 import { formatTime } from '../../utils/date';
+import { useAutoScroll } from '../../hooks/useAutoScroll';
 
 interface NearbyChatPanelProps {
   isOpen: boolean;
@@ -21,9 +22,14 @@ const NearbyChatPanel = ({ isOpen, onClose }: NearbyChatPanelProps) => {
   const { socket, currentUser, users } = useSocket();
   const [messages, setMessages] = useState<NearbyMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useAutoScroll(messages);
 
-  function calculateDistance(user: any): number {
+  interface UserWithPosition {
+    userId: string;
+    position: { x: number; y: number };
+  }
+
+  function calculateDistance(user: UserWithPosition): number {
     if (!currentUser) return 0;
     return calculateDistanceInMeters(user.position, currentUser.position);
   }
@@ -35,7 +41,7 @@ const NearbyChatPanel = ({ isOpen, onClose }: NearbyChatPanelProps) => {
   useEffect(() => {
     if (!socket) return;
 
-    const handleChatMessage = (data: any) => {
+    const handleChatMessage = (data: NearbyMessage) => {
       if (data.type === 'nearby') {
         setMessages((prev) => {
           // Deduplicate by id (server authoritative)
@@ -51,11 +57,6 @@ const NearbyChatPanel = ({ isOpen, onClose }: NearbyChatPanelProps) => {
       socket.off('chat-message', handleChatMessage);
     };
   }, [socket]);
-
-  // Auto scroll to bottom
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
 
   const handleSendMessage = () => {
     if (!socket || !currentUser || !inputMessage.trim()) return;
@@ -160,6 +161,8 @@ const NearbyChatPanel = ({ isOpen, onClose }: NearbyChatPanelProps) => {
             className="w-10 h-10 bg-[#5865f2] border-none rounded-xl text-white cursor-pointer flex items-center justify-center transition-all duration-200 shrink-0 shadow-[0_2px_4px_rgba(88,101,242,0.3)] hover:bg-[#4752c4] hover:-translate-y-px hover:shadow-[0_4px_8px_rgba(88,101,242,0.4)] disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={handleSendMessage}
             disabled={!inputMessage.trim() || nearbyUsers.length === 0}
+            aria-label="Send message"
+            title="Send message"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
               <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />

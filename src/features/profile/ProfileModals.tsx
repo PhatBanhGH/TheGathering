@@ -4,9 +4,24 @@ import { ASSETS, LAYER_ORDER } from '../../data/avatarAssets';
 import SpriteIcon from '../../components/SpriteIcon';
 import { FaPen, FaTimes } from 'react-icons/fa';
 
+// User interface for profile modals
+interface ProfileUser {
+  displayName?: string;
+  profileColor?: string;
+  avatarConfig?: Record<string, string>;
+}
+
+// Avatar asset item interface
+interface AvatarAssetItem {
+  id: string;
+  src?: string;
+  x?: number;
+  y?: number;
+}
+
 // --- 1. POPUP NHỎ (User Menu) ---
 interface UserMenuProps {
-  user: any;
+  user: ProfileUser;
   onEditProfile: () => void;
   onLogout: () => void;
   onClose: () => void;
@@ -21,11 +36,13 @@ export const UserMenuPopup = ({ user, onEditProfile, onLogout, onClose }: UserMe
       <div className="absolute bottom-20 left-4 z-50 w-[300px] bg-white rounded-2xl shadow-2xl border border-gray-100 p-5 animate-fade-in-up">
         <div className="flex items-center gap-4 mb-4">
             {/* Avatar tròn to */}
-            <div className="relative w-16 h-16 rounded-full flex items-center justify-center text-3xl font-bold text-white shadow-md"
-                 style={{ backgroundColor: user.profileColor || '#87CEEB' }}>
+            <div 
+              className="relative w-16 h-16 rounded-full flex items-center justify-center text-3xl font-bold text-white shadow-md"
+              style={{ backgroundColor: user.profileColor || '#87CEEB' }}
+            >
                 {user.displayName?.charAt(0).toUpperCase() || 'U'}
                 {/* Dấu chấm xanh online */}
-                <div className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></div>
+                <div className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 border-2 border-white rounded-full" aria-label="Online status"></div>
             </div>
             
             <div>
@@ -54,14 +71,14 @@ export const UserMenuPopup = ({ user, onEditProfile, onLogout, onClose }: UserMe
 
 // --- 2. MODAL LỚN (Edit Profile) ---
 interface EditProfileProps {
-  user: any;
+  user: ProfileUser;
   onClose: () => void;
   onSave: (newName: string, newColor: string) => void;
   onEditAvatar: () => void; // Hàm callback để mở lại trang AvatarSelection
 }
 
 export const EditProfileModal = ({ user, onClose, onSave, onEditAvatar }: EditProfileProps) => {
-  const [name, setName] = useState(user.displayName);
+  const [name, setName] = useState(user.displayName || '');
   const [color, setColor] = useState(user.profileColor || '#87CEEB');
 
   // Danh sách màu Profile Picture
@@ -74,7 +91,14 @@ export const EditProfileModal = ({ user, onClose, onSave, onEditAvatar }: EditPr
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
             <h2 className="text-2xl font-bold text-gray-800">Edit Profile</h2>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><FaTimes size={20}/></button>
+            <button 
+              onClick={onClose} 
+              className="text-gray-400 hover:text-gray-600"
+              aria-label="Close edit profile modal"
+              title="Close"
+            >
+              <FaTimes size={20}/>
+            </button>
         </div>
 
         {/* Hai vòng tròn: Profile Picture & Avatar */}
@@ -84,8 +108,10 @@ export const EditProfileModal = ({ user, onClose, onSave, onEditAvatar }: EditPr
             <div className="flex flex-col items-center gap-2">
                 <span className="text-sm font-medium text-gray-600">Profile picture</span>
                 <div className="relative group cursor-pointer">
-                    <div className="w-24 h-24 rounded-full flex items-center justify-center text-4xl font-bold text-white shadow-inner transition-colors"
-                         style={{ backgroundColor: color }}>
+                    <div 
+                      className="w-24 h-24 rounded-full flex items-center justify-center text-4xl font-bold text-white shadow-inner transition-colors"
+                      style={{ backgroundColor: color }}
+                    >
                         {name?.charAt(0).toUpperCase()}
                     </div>
                     {/* Nút bút chì nhỏ */}
@@ -96,7 +122,14 @@ export const EditProfileModal = ({ user, onClose, onSave, onEditAvatar }: EditPr
                     {/* Color Picker đơn giản hiện khi hover */}
                     <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white p-2 rounded-xl shadow-xl border border-gray-100 hidden group-hover:flex gap-1 z-10 w-max">
                         {colors.map(c => (
-                            <div key={c} onClick={() => setColor(c)} className="w-5 h-5 rounded-full cursor-pointer border border-gray-200" style={{backgroundColor: c}}></div>
+                            <button
+                              key={c} 
+                              onClick={() => setColor(c)} 
+                              className="w-5 h-5 rounded-full cursor-pointer border border-gray-200" 
+                              style={{ backgroundColor: c }}
+                              aria-label={`Select color ${c}`}
+                              title={c}
+                            />
                         ))}
                     </div>
                 </div>
@@ -112,7 +145,7 @@ export const EditProfileModal = ({ user, onClose, onSave, onEditAvatar }: EditPr
                              {/* Render Pixel Art Layers */}
                              {LAYER_ORDER.map(layerKey => {
                                 const itemId = user.avatarConfig?.[layerKey];
-                                const itemData = ASSETS[layerKey]?.find((i:any) => i.id === itemId);
+                                const itemData = ASSETS[layerKey]?.find((i: AvatarAssetItem) => i.id === itemId);
                                 if (itemData?.src) {
                                     return (
                                         <div key={layerKey} className="absolute inset-0 w-full h-full">
@@ -134,19 +167,27 @@ export const EditProfileModal = ({ user, onClose, onSave, onEditAvatar }: EditPr
 
         {/* Input Full Name */}
         <div className="mb-8">
-            <label className="block text-sm font-bold text-gray-700 mb-2">Full name<span className="text-blue-500">*</span></label>
+            <label htmlFor="profile-full-name" className="block text-sm font-bold text-gray-700 mb-2">
+              Full name<span className="text-blue-500">*</span>
+            </label>
             <input 
+                id="profile-full-name"
+                type="text"
                 className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none text-gray-800 font-medium transition-all"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                placeholder="Enter your full name"
+                aria-label="Full name"
+                aria-required="true"
             />
         </div>
 
         {/* Footer Buttons */}
         <div className="flex justify-end pt-4 border-t border-gray-100">
              <button 
-                onClick={() => onSave(name, color)}
+                onClick={() => onSave(name || '', color)}
                 className="px-8 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 hover:-translate-y-0.5 transition-all"
+                disabled={!name?.trim()}
              >
                 Save
              </button>

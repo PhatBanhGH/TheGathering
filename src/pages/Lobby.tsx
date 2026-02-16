@@ -198,7 +198,7 @@ const Lobby = () => {
           <div>
             <div className="flex items-center gap-3 mb-3">
               <p className="uppercase tracking-wider text-indigo-600 font-semibold text-sm">Join your gathering</p>
-              <Link to="/dashboard" className="text-sm font-medium text-indigo-600 hover:text-indigo-800">Dashboard</Link>
+              <Link to="/spaces" className="text-sm font-medium text-indigo-600 hover:text-indigo-800">Spaces</Link>
             </div>
             <h1 className="text-4xl font-extrabold text-gray-900 mb-2">Chuẩn bị trước khi vào phòng</h1>
             <p className="text-gray-600 text-base">Kiểm tra thiết bị và chọn không gian làm việc của bạn.</p>

@@ -16,7 +16,6 @@ import AvatarSelection from "./features/auth/AvatarSelection";
 
 // --- PAGES ---
 import LandingPage from "./pages/LandingPage";
-import { DashboardLayout } from "./pages/DashboardLayout";
 import SettingsLayout from "./features/settings/SettingsLayout";
 
 import bannerVideo from "./assets/banner-video.mov";
@@ -48,7 +47,6 @@ export default function LegacyAuthFlow() {
     | "forgot_verify"
     | "reset_password"
     | "avatar_selection"
-    | "dashboard"
     | "settings"
   >("check_email");
 
@@ -256,27 +254,16 @@ export default function LegacyAuthFlow() {
 
   const authContent = (
     <>
-      {/* 2. DASHBOARD */}
-      {step === "dashboard" && (
-        <DashboardLayout
-          onLogout={handleLogout}
-          onEditAvatarRequest={handleEditAvatarRequest}
-          onSettingsRequest={handleSettingsRequest}
-          onEnterGame={handleEnterWorkspace}
-        />
-      )}
+      {/* 2. SETTINGS */}
+      {step === "settings" && <SettingsLayout onBack={() => setIsLanding(true)} />}
 
-      {/* 3. SETTINGS */}
-      {step === "settings" && <SettingsLayout onBack={() => setStep("dashboard")} />}
-
-      {/* 4. AVATAR SELECTION */}
+      {/* 3. AVATAR SELECTION (legacy - now handled by /avatar route) */}
       {step === "avatar_selection" && (
-        <AvatarSelection token={authToken || ""} onSuccess={() => setStep("dashboard")} />
+        <AvatarSelection token={authToken || ""} onSuccess={() => navigate("/spaces", { replace: true })} />
       )}
 
-      {/* 5. AUTH FLOW */}
-      {step !== "dashboard" &&
-        step !== "avatar_selection" &&
+      {/* 4. AUTH FLOW */}
+      {step !== "avatar_selection" &&
         step !== "settings" && (
           <>
             <Header />

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { formatTime } from "../../utils/date";
+import { getAvatarColor } from "../../utils/avatar";
 
 interface Message {
   id: string;
@@ -146,22 +147,6 @@ const MessageItem = ({
 
   const commonReactions = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
 
-  // Generate consistent color for each user based on userId
-  const getAvatarColor = (userId: string): string => {
-    // Hash userId to get consistent color
-    let hash = 0;
-    for (let i = 0; i < userId.length; i++) {
-      hash = userId.charCodeAt(i) + ((hash << 5) - hash);
-    }
-
-    // Generate color from hash (bright, vibrant colors)
-    const hue = Math.abs(hash) % 360;
-    const saturation = 60 + (Math.abs(hash) % 20); // 60-80%
-    const lightness = 45 + (Math.abs(hash) % 15); // 45-60%
-
-    return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
-  };
-
   const avatarColor = getAvatarColor(message.userId);
   const avatarInitial = message.username.charAt(0).toUpperCase();
 
@@ -242,12 +227,15 @@ const MessageItem = ({
         {isEditing ? (
           <div className="flex flex-col gap-1">
             <input
+              id={`edit-message-${message.id}`}
               type="text"
               value={editContent}
               onChange={(e) => setEditContent(e.target.value)}
               onKeyDown={handleKeyPress}
               onBlur={handleEdit}
               className="w-full px-3 py-2.5 bg-slate-900/60 border border-indigo-500/40 rounded-xl text-sm text-slate-100 outline-none focus:ring-2 focus:ring-indigo-500/20"
+              placeholder="Edit message..."
+              aria-label="Edit message"
               autoFocus
             />
             <span className="text-[11px] text-slate-500 italic">

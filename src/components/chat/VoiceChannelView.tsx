@@ -1,7 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useWebRTC } from "../../contexts/WebRTCContext";
 import { useSocket } from "../../contexts/SocketContext";
 import { useChat } from "../../contexts/ChatContext";
+import { VideoPlayer } from "../video/VideoPlayer";
+import { getAvatarColor } from "../../utils/avatar";
 
 interface VoiceChannelViewProps {
   channelId: string;
@@ -19,135 +21,7 @@ interface VoiceUser {
   isSpeaking?: boolean; // NEW: For speaking indicator
 }
 
-// ==========================================
-// 1. Component hiển thị Video (Đã sửa lỗi)
-// ==========================================
-// Component này tự chịu trách nhiệm hoàn toàn về thẻ video của nó.
-// Không cần truyền Ref ngược lên cha làm gì cả.
-const UserVideoPlayer = ({
-  stream,
-  isLocal = false,
-  isVideoEnabled = true,
-}: {
-  stream: MediaStream | undefined | null;
-  isLocal?: boolean;
-  isVideoEnabled?: boolean;
-}) => {
-  const videoRef = useRef<HTMLVideoElement>(null);
-
-  useEffect(() => {
-    const videoEl = videoRef.current;
-    if (!videoEl) return;
-
-    if (stream) {
-      // Kiểm tra xem video track có còn hoạt động không
-      const videoTrack = stream.getVideoTracks()[0];
-      if (videoTrack && videoTrack.readyState === 'ended') {
-        console.warn(`⚠️ Video track ended (Local: ${isLocal}), stream may be invalid`);
-        // Không gán stream nếu track đã ended
-        return;
-      }
-
-      // Chỉ gán lại nếu khác stream ID để tránh nháy
-      if (videoEl.srcObject !== stream) {
-        console.log(
-          `📹 Assigning stream to video (Local: ${isLocal}, Stream: ${stream.id})`,
-          {
-            videoTracks: stream.getVideoTracks().length,
-            audioTracks: stream.getAudioTracks().length,
-            videoEnabled: stream.getVideoTracks()[0]?.enabled,
-            videoTrackState: videoTrack?.readyState,
-          }
-        );
-        videoEl.srcObject = stream;
-
-        // Cố gắng play ngay lập tức
-        videoEl.play().catch((e) => {
-          console.warn(`⚠️ Autoplay blocked (Local: ${isLocal}):`, e);
-        });
-      } else {
-        // Stream đã được gán, nhưng có thể cần play lại
-        if (videoEl.paused) {
-          console.log(`▶️ Resuming paused video (Local: ${isLocal})`);
-          videoEl.play().catch((e) => {
-            console.warn(`⚠️ Resume failed (Local: ${isLocal}):`, e);
-          });
-        }
-      }
-
-      // Monitor track state - nếu track bị ended, có thể camera bị chiếm dụng
-      const checkTrackState = () => {
-        if (videoTrack && videoTrack.readyState === 'ended') {
-          console.warn(`⚠️ Video track ended while playing (Local: ${isLocal}) - camera may be in use by another tab`);
-        }
-      };
-      
-      if (videoTrack) {
-        videoTrack.addEventListener('ended', checkTrackState);
-        return () => {
-          videoTrack.removeEventListener('ended', checkTrackState);
-        };
-      }
-    } else {
-      if (videoEl.srcObject) {
-        console.log(`🗑 Clearing video srcObject (Local: ${isLocal})`);
-        videoEl.srcObject = null;
-      }
-    }
-  }, [stream, isLocal]); // Chỉ chạy lại khi stream object thay đổi
-
-  return (
-    <video
-      ref={videoRef}
-      autoPlay
-      playsInline
-      muted={isLocal} // Quan trọng: Mute chính mình
-      className="w-full h-full object-cover bg-black"
-      style={{ 
-        // Luôn hiển thị video nếu có stream, không phụ thuộc vào isVideoEnabled
-        // isVideoEnabled chỉ để biết user có bật cam không (hiển thị avatar overlay)
-        display: stream ? "block" : "none",
-        opacity: stream && isVideoEnabled ? 1 : stream ? 0.3 : 0,
-      }}
-      onLoadedMetadata={() => {
-        console.log(`✅ Video metadata loaded (Local: ${isLocal}, Stream: ${stream?.id})`);
-        if (videoRef.current && stream) {
-          videoRef.current.play().catch((e) => {
-            console.warn(`⚠️ Play failed (Local: ${isLocal}):`, e);
-          });
-        }
-      }}
-      onCanPlay={() => {
-        console.log(`✅ Video can play (Local: ${isLocal}, Stream: ${stream?.id})`);
-        if (videoRef.current && stream) {
-          videoRef.current.play().catch((e) => {
-            console.warn(`⚠️ Play failed (Local: ${isLocal}):`, e);
-          });
-        }
-      }}
-      onPlaying={() => {
-        console.log(`▶️ Video is playing (Local: ${isLocal}, Stream: ${stream?.id})`);
-        // Kiểm tra xem video có thực sự hiển thị được không
-        if (videoRef.current && stream && isLocal) {
-          const videoTrack = stream.getVideoTracks()[0];
-          if (videoTrack && videoTrack.readyState === 'ended') {
-            console.warn(`⚠️ Video track ended while playing - camera may be in use by another tab`);
-          }
-        }
-      }}
-      onError={(e) => {
-        console.error(`❌ Video error (Local: ${isLocal}, Stream: ${stream?.id}):`, e);
-        // Nếu là local stream và có lỗi, có thể camera bị chiếm dụng
-        if (isLocal && stream) {
-          const videoTrack = stream.getVideoTracks()[0];
-          if (videoTrack && videoTrack.readyState === 'ended') {
-            console.error(`❌ Local video track ended - camera is in use by another tab/browser`);
-          }
-        }
-      }}
-    />
-  );
-};
+// UserVideoPlayer is now replaced by shared VideoPlayer component
 
 // ==========================================
 // 2. Component Cha (Đã làm sạch logic)
@@ -318,13 +192,6 @@ const VoiceChannelView = ({
   ]);
 
   // Helper UI functions
-  const getAvatarColor = (userId: string) => {
-    let hash = 0;
-    for (let i = 0; i < userId.length; i++)
-      hash = userId.charCodeAt(i) + ((hash << 5) - hash);
-    return `hsl(${Math.abs(hash) % 360}, 65%, 50%)`;
-  };
-
   const getGridColumns = (count: number) => {
     if (count <= 1) return 1;
     if (count <= 4) return 2;
@@ -370,10 +237,11 @@ const VoiceChannelView = ({
                 {/* Luôn render video element nếu có stream, để video có thể hiển thị ngay khi track enabled */}
                 {user.stream ? (
                   <>
-                    <UserVideoPlayer
+                    <VideoPlayer
                       stream={user.stream}
                       isLocal={isCurrentUser}
                       isVideoEnabled={user.isVideoEnabled}
+                      username={user.username}
                     />
                     {/* Avatar Fallback chỉ hiển thị khi video không enabled */}
                     {!user.isVideoEnabled && (

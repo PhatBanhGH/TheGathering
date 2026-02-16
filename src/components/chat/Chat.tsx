@@ -1,8 +1,9 @@
-import { useMemo, useRef, useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { useSocket } from "../../contexts/SocketContext";
 import { useChat } from "../../contexts/ChatContext";
 import { useWebRTC } from "../../contexts/WebRTCContext";
 import { getNearbyUsers } from "../../utils";
+import { useAutoScroll } from "../../hooks/useAutoScroll";
 
 const Chat = () => {
   const { users, currentUser } = useSocket();
@@ -25,11 +26,7 @@ const Chat = () => {
   const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  const messagesEndRef = useAutoScroll(messages);
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {

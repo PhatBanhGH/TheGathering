@@ -1,3 +1,4 @@
+// Lazy load framer-motion để giảm initial bundle size
 import { motion } from "framer-motion";
 import {
   BarChart3,

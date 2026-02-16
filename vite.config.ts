@@ -23,15 +23,59 @@ export default defineConfig({
   ],
   build: {
     outDir: "dist",
-    sourcemap: true,
+    sourcemap: false, // Tắt sourcemap trong production để giảm bundle size
+    minify: "esbuild", // Sử dụng esbuild cho minify nhanh hơn
+    target: "esnext", // Target modern browsers
+    cssCodeSplit: true, // Split CSS để load song song
     // Ensure Rollup's CommonJS handling sees pnpm's nested node_modules
     commonjsOptions: {
       include: [/node_modules/, /node_modules\/\.pnpm/],
       transformMixedEsModules: true,
+      // Đảm bảo Phaser được xử lý đúng cách (CommonJS module)
+      requireReturnsDefault: "auto",
     },
     rollupOptions: {
-      // Module polyfill banner removed - SFU only, no simple-peer needed
+      output: {
+        // Chunk splitting strategy để tối ưu loading
+        manualChunks: (id) => {
+          // Vendor chunks - tách các thư viện lớn
+          if (id.includes("node_modules")) {
+            // Phaser - game engine lớn, tách riêng
+            if (id.includes("phaser")) {
+              return "phaser";
+            }
+            // Mediasoup - WebRTC SFU, tách riêng
+            if (id.includes("mediasoup")) {
+              return "mediasoup";
+            }
+            // Socket.io - real-time communication
+            if (id.includes("socket.io")) {
+              return "socket.io";
+            }
+            // React và React DOM - core framework
+            if (id.includes("react") || id.includes("react-dom")) {
+              return "react-vendor";
+            }
+            // React Router
+            if (id.includes("react-router")) {
+              return "react-router";
+            }
+            // Framer Motion - animation library
+            if (id.includes("framer-motion")) {
+              return "framer-motion";
+            }
+            // Các vendor libraries khác
+            return "vendor";
+          }
+        },
+        // Tối ưu chunk file names
+        chunkFileNames: "assets/js/[name]-[hash].js",
+        entryFileNames: "assets/js/[name]-[hash].js",
+        assetFileNames: "assets/[ext]/[name]-[hash].[ext]",
+      },
     },
+    // Tăng chunk size warning limit
+    chunkSizeWarningLimit: 1000,
   },
   define: {
     global: "globalThis",
@@ -62,11 +106,20 @@ export default defineConfig({
     ],
   },
   optimizeDeps: {
-    include: ["react", "react-dom"],
+    include: [
+      "react",
+      "react-dom",
+      "react-router-dom",
+      "socket.io-client",
+      "mediasoup-client",
+      "phaser", // Pre-bundle Phaser (UMD) thành ESM để tránh lỗi "Cannot set properties of undefined"
+    ],
     esbuildOptions: {
       define: {
         global: "globalThis",
       },
+      // Tối ưu cho production
+      target: "esnext",
     },
   },
   ssr: {
