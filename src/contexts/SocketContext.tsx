@@ -15,7 +15,7 @@ interface SocketContextType {
   currentUser: User | null;
 }
 
-interface User {
+export interface User {
   userId: string;
   username: string;
   avatar: string;
@@ -27,6 +27,7 @@ interface User {
   // Linked avatar from profile (optional)
   displayName?: string;
   avatarConfig?: Record<string, string>;
+  [key: string]: unknown; // Index signature for flexibility
 }
 
 const SocketContext = createContext<SocketContextType | undefined>(undefined);

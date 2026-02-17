@@ -1,12 +1,5 @@
 import { useMemo } from "react";
-
-interface User {
-  username: string;
-  userId?: string;
-  avatar?: string;
-  status?: "online" | "offline";
-  [key: string]: unknown;
-}
+import type { User } from "../contexts/SocketContext";
 
 interface UseUserListOptions {
   users: User[];

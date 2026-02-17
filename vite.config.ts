@@ -48,10 +48,9 @@ export default defineConfig({
             if (id.includes("mediasoup")) {
               return "mediasoup";
             }
-            // Socket.io - real-time communication
-            if (id.includes("socket.io")) {
-              return "socket.io";
-            }
+            // Socket.io - real-time communication (keep in vendor to avoid circular dependency)
+            // Note: socket.io has dependencies that might cause circular chunks
+            // Keeping it in vendor chunk instead of separate chunk
             // React và React DOM - core framework
             if (id.includes("react") || id.includes("react-dom")) {
               return "react-vendor";

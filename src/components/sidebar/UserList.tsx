@@ -1,10 +1,5 @@
 import React, { useMemo } from "react";
-
-interface User {
-  username: string;
-  status?: "online" | "offline";
-  [key: string]: unknown;
-}
+import type { User } from "../../contexts/SocketContext";
 
 interface UserListProps {
   onlineUsers: User[];

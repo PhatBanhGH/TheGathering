@@ -2,13 +2,10 @@
  * User filtering utilities
  */
 import { calculateDistance, isWithinDistance } from "./distance.js";
+import type { User } from "../contexts/SocketContext";
 
-export interface User {
-  userId: string;
-  username: string;
-  position: { x: number; y: number };
-  [key: string]: any;
-}
+// Re-export User type for convenience
+export type { User };
 
 /**
  * Filter users that are nearby (within distance threshold)
